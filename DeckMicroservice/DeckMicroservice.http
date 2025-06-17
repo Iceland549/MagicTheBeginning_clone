@@ -1,0 +1,6 @@
+@DeckMicroservice_HostAddress = http://localhost:5171
+
+GET {{DeckMicroservice_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
