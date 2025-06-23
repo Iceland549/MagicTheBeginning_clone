@@ -3,7 +3,7 @@ using DeckMicroservice.Application.Interfaces;
 using DeckMicroservice.Infrastructure.Persistence.Entities;
 using MongoDB.Driver;
 
-namespace DeckMicroservice.Infrastructure.Persistence
+namespace DeckMicroservice.Infrastructure.Persistence.Repositories
 {
     public class MongoDeckRepository : IDeckRepository
     {

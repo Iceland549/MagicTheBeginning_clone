@@ -1,4 +1,4 @@
-﻿namespace CardMicroservice.Infrastructure.Config
+﻿namespace DeckMicroservice.Infrastructure.Config
 {
     /// <summary>
     /// Configuration settings for MongoDB connection.
