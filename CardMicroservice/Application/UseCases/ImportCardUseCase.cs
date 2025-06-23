@@ -24,7 +24,7 @@ namespace CardMicroservice.Application.UseCases
         public async Task<CardDto?> ExecuteAsync(string name)
         {
             // Récupère ScryfallCardDto (brut)
-            var raw = await _client.FetchRawCardByNameAsync(name);
+            var raw = await _client.FetchByNameAsync(name);
             if (raw == null) return null;
 
             // Mappe vers notre CardDto
