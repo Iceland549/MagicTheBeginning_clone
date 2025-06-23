@@ -2,7 +2,7 @@
 using CardMicroservice.Application.Interfaces;
 using MongoDB.Driver;
 
-namespace CardMicroservice.Infrastructure.Persistence
+namespace CardMicroservice.Infrastructure.Persistence.Repositories
 {
     public class MongoCardRepository : ICardRepository
     {
