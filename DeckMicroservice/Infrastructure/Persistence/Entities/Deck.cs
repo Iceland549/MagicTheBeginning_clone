@@ -1,4 +1,4 @@
-﻿using DeckMicroservice.Infrastructure.Persistence.Models;
+﻿using DeckMicroservice.Infrastructure.Persistence.Entities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
