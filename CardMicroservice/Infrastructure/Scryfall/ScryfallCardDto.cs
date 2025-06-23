@@ -2,7 +2,6 @@
 
 namespace CardMicroservice.Infrastructure.Scryfall
 {
-    // Represents the raw data structure of a Scryfall API card response.
     public class ScryfallCardDto
     {
         [JsonPropertyName("id")]
@@ -44,20 +43,25 @@ namespace CardMicroservice.Infrastructure.Scryfall
         [JsonPropertyName("collector_number")]
         public string CollectorNumber { get; set; } = string.Empty;
 
-        // Represents the image_uris object from Scryfall API responses.
+        [JsonPropertyName("image_uris")]
+        public ImageUris? ImageUrisData { get; set; }
+
         public class ImageUris
         {
             [JsonPropertyName("small")]
-            public string Small { get; set; } = string.Empty; // Small image URL
-            [JsonPropertyName("normal")]
-            public string Normal { get; set; } = string.Empty; // Normal image URL
-            [JsonPropertyName("large")]
-            public string Large { get; set; } = string.Empty; // Large image URL
-            [JsonPropertyName("png")]
-            public string Png { get; set; } = string.Empty; // PNG image URL
-            [JsonPropertyName("art_crop")]
-            public string ArtCrop { get; set; } = string.Empty; // Art crop image URL
-        }
+            public string Small { get; set; } = string.Empty;
 
+            [JsonPropertyName("normal")]
+            public string Normal { get; set; } = string.Empty;
+
+            [JsonPropertyName("large")]
+            public string Large { get; set; } = string.Empty;
+
+            [JsonPropertyName("png")]
+            public string Png { get; set; } = string.Empty;
+
+            [JsonPropertyName("art_crop")]
+            public string ArtCrop { get; set; } = string.Empty;
+        }
     }
 }
