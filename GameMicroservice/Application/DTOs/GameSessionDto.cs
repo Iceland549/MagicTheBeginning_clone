@@ -1,6 +1,34 @@
-﻿namespace GameMicroservice.Application.DTOs
+﻿
+namespace GameMicroservice.Application.DTOs
 {
+    /// <summary>
+    /// DTO representing a game session.
+    /// </summary>
     public class GameSessionDto
     {
+        /// <summary>
+        /// Unique identifier of the game session.
+        /// </summary>
+        public string Id { get; set; } = null!;
+
+        /// <summary>
+        /// ID of the first player.
+        /// </summary>
+        public string PlayerOneId { get; set; } = null!;
+
+        /// <summary>
+        /// ID of the second player.
+        /// </summary>
+        public string PlayerTwoId { get; set; } = null!;
+
+        /// <summary>
+        /// ID of the player whose turn it is.
+        /// </summary>
+        public string ActivePlayerId { get; set; } = null!;
+
+        /// <summary>
+        /// Game zones: "library", "hand", "battlefield", "graveyard".
+        /// </summary>
+        public Dictionary<string, List<string>> Zones { get; set; } = new();
     }
 }
