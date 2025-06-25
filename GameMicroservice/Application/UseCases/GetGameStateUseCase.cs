@@ -1,5 +1,7 @@
-﻿using GameMicroservice.Application.DTOs;
+﻿using AutoMapper;
+using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.Interfaces;
+using GameMicroservice.Infrastructure.Persistence.Entities;
 using System;
 using System.Threading.Tasks;
 
@@ -11,12 +13,18 @@ namespace GameMicroservice.Application.UseCases
     public class GetGameStateUseCase
     {
         private readonly IGameSessionRepository _repo;
+        private readonly IMapper _mapper;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GetGameStateUseCase"/> class.
         /// </summary>
         /// <param name="repo">The game session repository.</param>
-        public GetGameStateUseCase(IGameSessionRepository repo) => _repo = repo;
+        /// <param name="mapper">The AutoMapper instance for mapping entities to DTOs.</param>
+        public GetGameStateUseCase(IGameSessionRepository repo, IMapper mapper)
+        {
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+        }
 
         /// <summary>
         /// Executes the use case to retrieve a game session by ID.
@@ -28,7 +36,7 @@ namespace GameMicroservice.Application.UseCases
         {
             var game = await _repo.GetByIdAsync(gameId)
                        ?? throw new KeyNotFoundException("Game session not found");
-            return game;
+            return _mapper.Map<GameSessionDto>(game);
         }
     }
 }
