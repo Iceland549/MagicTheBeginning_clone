@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using GameMicroservice.Domain;
+
 
 namespace GameMicroservice.Infrastructure.Persistence.Entities
 {
@@ -10,14 +12,22 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
     public class PlayerState
     {
         [BsonRepresentation(BsonType.ObjectId)]
-        public string PlayerId { get; set; } = null!;            // Reference to the user
+        [BsonElement("playerId")]
+        public string PlayerId { get; set; } = null!; // Reference to the user
 
-        [BsonElement("health")]
-        public int Health { get; set; }                          // Remaining life points
+        [BsonElement("lifeTotal")]
+        public int LifeTotal { get; set; } = 20; // Remaining life points
 
-        [BsonElement("hand")]
-        public List<string> Hand { get; set; } = new();         // IDs of cards in hand
+        [BsonElement("manaPool")]
+        public Dictionary<Color, int> ManaPool { get; set; } = new()
+        {
+            { Color.White, 0 }, { Color.Blue, 0 }, { Color.Black, 0 }, { Color.Red, 0 }, { Color.Green, 0 }
+        }; // Available mana by color
 
-        // ✨ Future options for game state: Mana, Board, Graveyard...
+        [BsonElement("landsPlayedThisTurn")]
+        public int LandsPlayedThisTurn { get; set; } // Number of lands played this turn
+
+        [BsonElement("hasDrawnThisTurn")]
+        public bool HasDrawnThisTurn { get; set; } // Whether the player has drawn this turn
     }
 }
