@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using GameMicroservice.Domain;
+using GameMicroservice.Infrastructure.Persistence.Entities;
 
 namespace GameMicroservice.Infrastructure.Persistence.Entities
 {
@@ -33,6 +35,14 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
         public string CurrentState { get; set; } = null!;       // e.g., "InProgress", "Finished"
 
         [BsonElement("zones")]
-        public Dictionary<string, List<string>> Zones { get; set; } = new(); // Each player has 4 zones: library, hand, battlefield, graveyard
+        public Dictionary<string, List<CardInGame>> Zones { get; set; } = new(); // Each player has 4 zones: library, hand, battlefield, graveyard
+
+        [BsonElement("currentPhase")]
+        public Phase CurrentPhase { get; set; } = Phase.Draw;
+
+        [BsonElement("turnNumber")]
+        public int TurnNumber { get; set; } = 1;
+
+
     }
 }
