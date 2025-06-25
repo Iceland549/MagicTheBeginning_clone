@@ -1,4 +1,4 @@
-﻿using GameMicroservice.Application.DTOs;
+﻿using GameMicroservice.Infrastructure.Persistence.Entities;
 using System.Threading.Tasks;
 
 namespace GameMicroservice.Application.Interfaces
@@ -13,15 +13,21 @@ namespace GameMicroservice.Application.Interfaces
         /// </summary>
         /// <param name="playerOneId">ID of the first player.</param>
         /// <param name="playerTwoId">ID of the second player.</param>
-        /// <returns>The created game session DTO.</returns>
-        Task<GameSessionDto> CreateAsync(string playerOneId, string playerTwoId);
+        /// <returns>The created game session entity.</returns>
+        Task<GameSession> CreateAsync(string playerOneId, string playerTwoId);
 
         /// <summary>
         /// Retrieves a game session by its ID.
         /// </summary>
         /// <param name="gameId">The ID of the game session.</param>
-        /// <returns>The game session DTO, or null if not found.</returns>
-        Task<GameSessionDto?> GetByIdAsync(string gameId);
+        /// <returns>The game session entity, or null if not found.</returns>
+        Task<GameSession?> GetByIdAsync(string gameId);
+
+        /// <summary>
+        /// Updates an existing game session.
+        /// </summary>
+        /// <param name="session">The game session entity to update.</param>
+        Task UpdateAsync(GameSession session);
 
         /// <summary>
         /// Updates a game session by playing a card.
