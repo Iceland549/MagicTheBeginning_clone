@@ -1,4 +1,6 @@
 ﻿
+using GameMicroservice.Domain;
+
 namespace GameMicroservice.Application.DTOs
 {
     /// <summary>
@@ -26,9 +28,16 @@ namespace GameMicroservice.Application.DTOs
         /// </summary>
         public string ActivePlayerId { get; set; } = null!;
 
+        public int TurnNumber { get; set; } = 1;
+
+        public List<PlayerStateDto> Players { get; set; } = new();
+
         /// <summary>
         /// Game zones: "library", "hand", "battlefield", "graveyard".
         /// </summary>
         public Dictionary<string, List<string>> Zones { get; set; } = new();
+
+        public Phase CurrentPhase { get; set; } = Phase.Draw; // Current phase of the game
+
     }
 }
