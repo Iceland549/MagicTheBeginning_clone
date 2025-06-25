@@ -1,5 +1,8 @@
-﻿using GameMicroservice.Application.DTOs;
+﻿using AutoMapper;
+using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.Interfaces;
+using GameMicroservice.Infrastructure.Persistence.Entities;
+using System;
 using System.Threading.Tasks;
 
 namespace GameMicroservice.Application.UseCases
@@ -10,12 +13,18 @@ namespace GameMicroservice.Application.UseCases
     public class StartGameUseCase
     {
         private readonly IGameSessionRepository _repo;
+        private readonly IMapper _mapper;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StartGameUseCase"/> class.
         /// </summary>
         /// <param name="repo">The game session repository.</param>
-        public StartGameUseCase(IGameSessionRepository repo) => _repo = repo;
+        /// <param name="mapper">The AutoMapper instance for mapping entities to DTOs.</param>
+        public StartGameUseCase(IGameSessionRepository repo, IMapper mapper)
+        {
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+        }
 
         /// <summary>
         /// Executes the use case to start a game session.
@@ -23,7 +32,10 @@ namespace GameMicroservice.Application.UseCases
         /// <param name="p1">ID of the first player.</param>
         /// <param name="p2">ID of the second player.</param>
         /// <returns>The created game session DTO.</returns>
-        public Task<GameSessionDto> ExecuteAsync(string p1, string p2) =>
-            _repo.CreateAsync(p1, p2);
+        public async Task<GameSessionDto> ExecuteAsync(string p1, string p2)
+        {
+            var gameSession = await _repo.CreateAsync(p1, p2);
+            return _mapper.Map<GameSessionDto>(gameSession);
+        }
     }
 }
