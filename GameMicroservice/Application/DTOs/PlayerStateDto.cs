@@ -1,24 +1,22 @@
-﻿namespace GameMicroservice.Application.DTOs
+﻿using System.Collections.Generic;
+using GameMicroservice.Domain;
+
+namespace GameMicroservice.Application.DTOs
 {
-    /// <summary>
-    /// DTO representing the state of a player in a game session.
-    /// </summary>
     public class PlayerStateDto
     {
-        /// <summary>
-        /// Identifier of the player.
-        /// </summary>
-        public string PlayerId { get; set; } = null!;
+        public string PlayerId { get; set; } = null!; // Reference to the user
 
-        /// <summary>
-        /// Remaining life points.
-        /// </summary>
-        public int Health { get; set; }
+        public int LifeTotal { get; set; } = 20; // Remaining life points
 
-        /// <summary>
-        /// List of card IDs in the player's hand.
-        /// </summary>
-        public IList<string> Hand { get; set; } = new List<string>();
 
+        public Dictionary<Color, int> ManaPool { get; set; } = new()
+        {
+            { Color.White, 0 }, { Color.Blue, 0 }, { Color.Black, 0 }, { Color.Red, 0 }, { Color.Green, 0 }
+        }; // Available mana by color
+
+        public int LandsPlayedThisTurn { get; set; } // Number of lands played this turn
+
+        public bool HasDrawnThisTurn { get; set; } // Whether the player has drawn this turn
     }
 }
