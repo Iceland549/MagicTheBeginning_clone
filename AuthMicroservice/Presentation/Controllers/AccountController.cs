@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace AuthMicroservice.Presentation.Controllers
 {
     [ApiController]
-    [Route("account")]
+    [Route("api/account")]
     public class AccountController : ControllerBase
     {
         private readonly RegisterUserUseCase _register;
