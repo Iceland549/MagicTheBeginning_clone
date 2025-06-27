@@ -4,7 +4,7 @@ import api from "../../services/api";
  * Fetch all cards.
  * @returns {Promise} List of cards
  */
-export async function fetchAllCards() {
+export async function getAllCards() {
   const { data } = await api.get("/cards");
   return data;
 }
