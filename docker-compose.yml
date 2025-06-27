@@ -1,0 +1,146 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - SA_PASSWORD=YourStrong!Passw0rd
+      - ACCEPT_EULA=Y
+    ports:
+      - "1433:1433"
+    networks:
+      - mtb-net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/1433"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  mongo:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    networks:
+      - mtb-net
+
+  auth:
+    build:
+      context: .
+      dockerfile: AuthMicroservice/Dockerfile
+    environment:
+      - ASPNETCORE_URLS=http://+:5001
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AuthDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - Jwt__Issuer=MagicTheBeginning
+      - Jwt__Audience=MagicClients
+      - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
+      - Admin__Email=admin@mtb.local
+      - Admin__Password=AdminP@ssw0rd!
+      - Smtp__Host=smtp.example.com
+      - Smtp__Port=587
+      - Smtp__EnableSsl=true
+      - Smtp__User=no-reply@example.com
+      - Smtp__Password=SuperSecretSMTPpw
+      - Smtp__From=no-reply@example.com
+      - Smtp__FrontendUrl=http://localhost:5005
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    ports:
+      - "5001:5001"
+    networks:
+      - mtb-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/auth/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - ./keys:/root/.aspnet/DataProtection-Keys
+
+  card:
+    build:
+      context: .
+      dockerfile: CardMicroservice/Dockerfile
+    environment:
+      - ASPNETCORE_URLS=http://+:5002
+      - Mongo__ConnectionString=mongodb://mongo:27017
+      - Mongo__Database=magic-db
+      - Mongo__CardCollection=cards
+      - Jwt__Issuer=MagicTheBeginning
+      - Jwt__Audience=MagicClients
+      - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
+    depends_on:
+      - mongo
+    ports:
+      - "5002:5002"
+    networks:
+      - mtb-net
+
+  deck:
+    build:
+      context: .
+      dockerfile: DeckMicroservice/Dockerfile
+    environment:
+      - ASPNETCORE_URLS=http://+:5003
+      - Mongo__ConnectionString=mongodb://mongo:27017
+      - Mongo__Database=magic-db
+      - Mongo__DeckCollection=decks
+    depends_on:
+      - mongo
+    ports:
+      - "5003:5003"
+    networks:
+      - mtb-net
+
+  game:
+    build:
+      context: .
+      dockerfile: GameMicroservice/Dockerfile
+    environment:
+      - ASPNETCORE_URLS=http://+:5004
+      - CardMicroserviceBaseUrl=http://note:5002
+      - DeckMicroserviceBaseUrl=http://note:5003
+      - Jwt__Issuer=MagicTheBeginning
+      - Jwt__Audience=MagicClients
+      - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
+      - Mongo__ConnectionString=mongodb://mongo:27017
+      - Mongo__Database=magic-db
+      - Mongo__GameCollection=games
+    depends_on:
+      - mongo
+    ports:
+      - "5004:5004"
+    networks:
+      - mtb-net
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Gateway/Dockerfile
+    environment:
+      - ASPNETCORE_URLS=http://+:5000
+      - Jwt__Issuer=MagicTheBeginning
+      - Jwt__Audience=MagicClients
+      - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
+    depends_on:
+      - auth
+      - card
+      - deck
+      - game
+    ports:
+      - "5000:5000"
+    networks:
+      - mtb-net
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    networks:
+      - mtb-net
+
+networks:
+  mtb-net:
+    driver: bridge
