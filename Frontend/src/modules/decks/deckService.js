@@ -15,7 +15,7 @@ export async function createDeck(deckData) {
  * @param {string} ownerId
  * @returns {Promise} List of decks
  */
-export async function fetchDecksByOwner(ownerId) {
+export async function getDecks(ownerId) {
   const { data } = await api.get(`/decks/${ownerId}`);
   return data;
 }
