@@ -1,13 +1,52 @@
-import api from '../../services/api';
+import api from "../../services/api";
 
-export const login = async creds => {
-  const { data } = await api.post('/auth/login', creds);
-  localStorage.setItem('accessToken', data.accessToken);
-  localStorage.setItem('refreshToken', data.refreshToken);
+/**
+ * Log in a user and store access/refresh tokens in localStorage.
+ * @param {Object} credentials - { userName, password }
+ * @returns {Promise} Login response data
+ */
+export async function login(credentials) {
+  const { data } = await api.post("/api/auth/login", credentials);
+  localStorage.setItem("accessToken", data.accessToken);
+  localStorage.setItem("refreshToken", data.refreshToken);
   return data;
-};
+}
 
-export const register = user => api.post('/account/register', user);
-export const getProfile = () => api.get('/account/me');
-export const sendConfirmation = email => api.post('/account/send-confirmation', email);
-export const confirmEmail   = token => api.get(`/account/confirm?token=${token}`);
+/**
+ * Register a new user.
+ * @param {Object} registrationData
+ * @returns {Promise} Registration response data
+ */
+export async function register(registrationData) {
+  const { data } = await api.post("/api/account/register", registrationData);
+  return data;
+}
+
+/**
+ * Get the current user's profile.
+ * @returns {Promise} User profile
+ */
+export async function getProfile() {
+  const { data } = await api.get("/api/account/me");
+  return data;
+}
+
+/**
+ * Send email confirmation to a user.
+ * @param {Object} emailData - { email }
+ * @returns {Promise} Email confirmation response
+ */
+export async function sendConfirmation(emailData) {
+  const { data } = await api.post("/api/account/send-confirmation", emailData);
+  return data;
+}
+
+/**
+ * Confirm a user's email.
+ * @param {string} token
+ * @returns {Promise} Confirmation response
+ */
+export async function confirmEmail(token) {
+  const { data } = await api.get(`/api/account/confirm?token=${token}`);
+  return data;
+} 

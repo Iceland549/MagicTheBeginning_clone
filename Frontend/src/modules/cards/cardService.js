@@ -1,4 +1,30 @@
-import api from '../../services/api';
-export const getAllCards   = () => api.get('/api/cards');
-export const getCardByName = name => api.get(`/api/cards/${name}`);
-export const importCard    = name => api.post(`/api/cards/import/${name}`);
+import api from "../../services/api";
+
+/**
+ * Fetch all cards.
+ * @returns {Promise} List of cards
+ */
+export async function fetchAllCards() {
+  const { data } = await api.get("/api/cards");
+  return data;
+}
+
+/**
+ * Fetch a card by name.
+ * @param {string} name
+ * @returns {Promise} Card data
+ */
+export async function fetchCardByName(name) {
+  const { data } = await api.get(`/api/cards/${encodeURIComponent(name)}`);
+  return data;
+}
+
+/**
+ * Import a card from Scryfall by name.
+ * @param {string} name
+ * @returns {Promise} Imported card data
+ */
+export async function importCard(name) {
+  const { data } = await api.post(`/api/cards/import/${encodeURIComponent(name)}`);
+  return data;
+}

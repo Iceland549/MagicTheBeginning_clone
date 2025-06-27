@@ -1,4 +1,32 @@
-import api from '../../services/api';
-export const startGame   = payload => api.post('/api/game/start', payload);
-export const getGameState= id      => api.get(`/api/game/${id}`);
-export const playCard    = (id, name) => api.post(`/api/game/${id}/play`, { cardName: name });
+import api from "../../services/api";
+
+/**
+ * Start a new game session.
+ * @param {Object} gameData
+ * @returns {Promise} Game session info
+ */
+export async function startGame(gameData) {
+  const { data } = await api.post("/api/game/start", gameData);
+  return data;
+}
+
+/**
+ * Get the current state of a game session.
+ * @param {string} gameId
+ * @returns {Promise} Game state
+ */
+export async function getGameState(gameId) {
+  const { data } = await api.get(`/api/game/${gameId}`);
+  return data;
+}
+
+/**
+ * Play a card in the current game session.
+ * @param {string} gameId
+ * @param {Object} playData - { cardName }
+ * @returns {Promise} Updated game state
+ */
+export async function playCard(gameId, playData) {
+  const { data } = await api.post(`/api/game/${gameId}/play`, playData);
+  return data;
+}
