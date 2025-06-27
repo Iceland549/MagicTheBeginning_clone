@@ -26,7 +26,7 @@ namespace AuthMicroservice.Application.UseCases
             var user = new User
             {
                 Email = email,
-                EmailConfirmed = false
+                EmailConfirmed = true
             };
 
             await _repo.CreateUserAsync(user, password);     // Hash & save user
