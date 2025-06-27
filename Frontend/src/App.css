@@ -1,10 +1,44 @@
+.app-title {
+  font-size: 3rem;
+  font-weight: bold;
+  text-align: center;
+  color: #FFD700; 
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.5);
+  margin-bottom: 1.5rem;
+  font-family: 'Cinzel', serif;
+}
+
 /* Background sections */
 .section {
-  background-size: cover;
+  background-repeat: no-repeat;
   background-position: center;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
   color: #fff;
+  padding: 2rem;
   animation: fadeIn 1s ease-in;
+  z-index: 0;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: inherit;
+  background-size: inherit;
+  background-position: inherit;
+  background-repeat: no-repeat;
+  filter: blur(2px);
+  transform: scale(1.05); 
+  z-index: -1;
+}
+
+h2 {
+  color: black;
 }
 
 /* Simple fade-in animation */
@@ -18,7 +52,7 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
-  backdrop-filter: brightness(0.7);
+  /* backdrop-filter: brightness(0.7); */
 }
 
 /* Button styling */
@@ -45,7 +79,28 @@ input, textarea {
 
 /* Logo */
 .logo {
-  width: 150px;
+  width: 50vw;                  /* taille responsive : 40% de la largeur écran */
+  max-width: 320px;             /* limite max (comme ton ancienne valeur fixe) */
+  min-width: 100px;             /* taille minimale pour mobile */
   display: block;
   margin: 1rem auto;
+
+  border-radius: 1rem;           /* rond si image carrée */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* petite ombre douce */
+  transition: transform 0.2s ease;
+}
+
+.logo:hover {
+  transform: scale(1.05);
+}
+
+
+@media (max-width: 768px) {
+  .app-title {
+    font-size: 2rem;
+  }
+  .section {
+    background-size: cover;
+    background-color: #000;
+  }
 }
