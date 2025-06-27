@@ -49,7 +49,7 @@ services:
     networks:
       - mtb-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/api/auth/login"]
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -85,6 +85,9 @@ services:
       - Mongo__ConnectionString=mongodb://mongo:27017
       - Mongo__Database=magic-db
       - Mongo__DeckCollection=decks
+      - Jwt__Issuer=MagicTheBeginning
+      - Jwt__Audience=MagicClients
+      - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
     depends_on:
       - mongo
     ports:
@@ -98,8 +101,8 @@ services:
       dockerfile: GameMicroservice/Dockerfile
     environment:
       - ASPNETCORE_URLS=http://+:5004
-      - CardMicroserviceBaseUrl=http://note:5002
-      - DeckMicroserviceBaseUrl=http://note:5003
+      - CardMicroserviceBaseUrl=http://card:5002
+      - DeckMicroserviceBaseUrl=http://deck:5003
       - Jwt__Issuer=MagicTheBeginning
       - Jwt__Audience=MagicClients
       - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
@@ -123,10 +126,19 @@ services:
       - Jwt__Audience=MagicClients
       - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
     depends_on:
-      - auth
-      - card
-      - deck
-      - game
+      auth:
+        condition: service_healthy
+      card:
+        condition: service_healthy
+      deck:
+        condition: service_healthy
+      game:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      retries: 5
+      start_period: 20s
     ports:
       - "5000:5000"
     networks:
