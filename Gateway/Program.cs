@@ -6,6 +6,9 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure the gateway to listen on port 5000.
+builder.WebHost.UseUrls("http://+:5000");
+
 // CORS
 builder.Services.AddCors(p =>
   p.AddPolicy("AllowReactApp", b =>
