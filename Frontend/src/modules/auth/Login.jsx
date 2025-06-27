@@ -17,7 +17,8 @@ export default function Login() {
   return (
     <div className="section" style={{ backgroundImage: 'url(/assets/bg-cards.jpg)' }}>
       <div className="container">
-        <img src="/assets/logo.png" alt="Logo" className="logo"/>
+        <h1 className="app-title">Magic The Beginning</h1>
+        <img src="/assets/logo.jpg" alt="Logo" className="logo"/>
         <h2>Connexion</h2>
         <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
         <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Mot de passe" />

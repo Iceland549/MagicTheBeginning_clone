@@ -19,6 +19,7 @@ export default function Register() {
   return (
     <div className="section" style={{ backgroundImage: 'url(/assets/bg-cards.jpg)' }}>
       <div className="container">
+        <h1 className="app-title">Magic The Beginning</h1>
         <h2>Inscription</h2>
         <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
         <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Mot de passe" />
