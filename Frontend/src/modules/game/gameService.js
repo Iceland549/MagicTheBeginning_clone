@@ -6,7 +6,7 @@ import api from "../../services/api";
  * @returns {Promise} Game session info
  */
 export async function startGame(gameData) {
-  const { data } = await api.post("/game/start", gameData);
+  const { data } = await api.post("/games/start", gameData);
   return data;
 }
 
@@ -16,7 +16,7 @@ export async function startGame(gameData) {
  * @returns {Promise} Game state
  */
 export async function getGameState(gameId) {
-  const { data } = await api.get(`/game/${gameId}`);
+  const { data } = await api.get(`/games/${gameId}`);
   return data;
 }
 
@@ -27,6 +27,6 @@ export async function getGameState(gameId) {
  * @returns {Promise} Updated game state
  */
 export async function playCard(gameId, playData) {
-  const { data } = await api.post(`/game/${gameId}/play`, playData);
+  const { data } = await api.post(`/games/${gameId}/play`, playData);
   return data;
 }
