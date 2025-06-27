@@ -5,7 +5,7 @@ import api from "../../services/api";
  * @returns {Promise} List of cards
  */
 export async function fetchAllCards() {
-  const { data } = await api.get("/api/cards");
+  const { data } = await api.get("/cards");
   return data;
 }
 
@@ -15,7 +15,7 @@ export async function fetchAllCards() {
  * @returns {Promise} Card data
  */
 export async function fetchCardByName(name) {
-  const { data } = await api.get(`/api/cards/${encodeURIComponent(name)}`);
+  const { data } = await api.get(`/cards/${encodeURIComponent(name)}`);
   return data;
 }
 
@@ -25,6 +25,6 @@ export async function fetchCardByName(name) {
  * @returns {Promise} Imported card data
  */
 export async function importCard(name) {
-  const { data } = await api.post(`/api/cards/import/${encodeURIComponent(name)}`);
+  const { data } = await api.post(`/cards/import/${encodeURIComponent(name)}`);
   return data;
 }

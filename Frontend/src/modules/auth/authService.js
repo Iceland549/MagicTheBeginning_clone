@@ -6,7 +6,7 @@ import api from "../../services/api";
  * @returns {Promise} Login response data
  */
 export async function login(credentials) {
-  const { data } = await api.post("/api/auth/login", credentials);
+  const { data } = await api.post("/auth/login", credentials);
   localStorage.setItem("accessToken", data.accessToken);
   localStorage.setItem("refreshToken", data.refreshToken);
   return data;
@@ -18,7 +18,7 @@ export async function login(credentials) {
  * @returns {Promise} Registration response data
  */
 export async function register(registrationData) {
-  const { data } = await api.post("/api/account/register", registrationData);
+  const { data } = await api.post("/account/register", registrationData);
   return data;
 }
 
@@ -27,7 +27,7 @@ export async function register(registrationData) {
  * @returns {Promise} User profile
  */
 export async function getProfile() {
-  const { data } = await api.get("/api/account/me");
+  const { data } = await api.get("/account/me");
   return data;
 }
 
@@ -37,7 +37,7 @@ export async function getProfile() {
  * @returns {Promise} Email confirmation response
  */
 export async function sendConfirmation(emailData) {
-  const { data } = await api.post("/api/account/send-confirmation", emailData);
+  const { data } = await api.post("/account/send-confirmation", emailData);
   return data;
 }
 
@@ -47,6 +47,6 @@ export async function sendConfirmation(emailData) {
  * @returns {Promise} Confirmation response
  */
 export async function confirmEmail(token) {
-  const { data } = await api.get(`/api/account/confirm?token=${token}`);
+  const { data } = await api.get(`/account/confirm?token=${token}`);
   return data;
 } 

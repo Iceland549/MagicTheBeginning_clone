@@ -6,7 +6,7 @@ import api from "../../services/api";
  * @returns {Promise} Created deck
  */
 export async function createDeck(deckData) {
-  const { data } = await api.post("/api/decks", deckData);
+  const { data } = await api.post("/decks", deckData);
   return data;
 }
 
@@ -16,7 +16,7 @@ export async function createDeck(deckData) {
  * @returns {Promise} List of decks
  */
 export async function fetchDecksByOwner(ownerId) {
-  const { data } = await api.get(`/api/decks/${ownerId}`);
+  const { data } = await api.get(`/decks/${ownerId}`);
   return data;
 }
 
@@ -26,6 +26,6 @@ export async function fetchDecksByOwner(ownerId) {
  * @returns {Promise} Validation result
  */
 export async function validateDeck(deckData) {
-  const { data } = await api.post("/api/decks/validate", deckData);
+  const { data } = await api.post("/decks/validate", deckData);
   return data;
 }
