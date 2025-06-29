@@ -53,8 +53,6 @@ builder.Services.AddCors(opts =>
 // HealthCheck
 builder.Services.AddHealthChecks();
 
-// Ocelot
-builder.Services.AddOcelot(builder.Configuration);
 
 // Add services to the container.
 builder.Services.AddGameMicroserviceServices(builder.Configuration);
@@ -88,6 +86,5 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
-await app.UseOcelot();
 
 app.Run();

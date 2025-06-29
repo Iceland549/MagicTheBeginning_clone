@@ -87,6 +87,5 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
-await app.UseOcelot();
 
 app.Run();

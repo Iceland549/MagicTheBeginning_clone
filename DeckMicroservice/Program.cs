@@ -53,8 +53,6 @@ builder.Services.AddCors(opts =>
 // HealthCheck
 builder.Services.AddHealthChecks();
 
-// Ocelot
-builder.Services.AddOcelot(builder.Configuration);
 
 // Add services to the container.
 builder.Services.AddDeckMicroserviceServices(builder.Configuration);
@@ -86,7 +84,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapControllers();
-
-await app.UseOcelot();
 
 app.Run();
