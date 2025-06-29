@@ -24,8 +24,6 @@ builder.Services.AddCors(p =>
      .AllowAnyMethod()
      .AllowCredentials()));
 
-// Ocelot configuration
-builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
 
 // JWT Authentication
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -55,8 +53,8 @@ builder.Services.AddCors(opts =>
     )
 );
 
-// Ocelot
-builder.Services.AddOcelot(builder.Configuration);
+// HealthCheck
+builder.Services.AddHealthChecks();
 
 // Add services to the container.
 builder.Services.AddCardMicroserviceServices(builder.Configuration);
@@ -88,7 +86,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
+app.MapHealthChecks("/health");
 await app.UseOcelot();
 
 app.Run();

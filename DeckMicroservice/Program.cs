@@ -21,8 +21,6 @@ builder.Services.AddCors(p =>
      .AllowAnyMethod()
      .AllowCredentials()));
 
-// Ocelot configuration
-builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
 
 // JWT Authentication
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -51,6 +49,9 @@ builder.Services.AddCors(opts =>
          .AllowAnyOrigin()
     )
 );
+
+// HealthCheck
+builder.Services.AddHealthChecks();
 
 // Ocelot
 builder.Services.AddOcelot(builder.Configuration);
@@ -83,7 +84,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.MapHealthChecks("/health");
 app.MapControllers();
 
 await app.UseOcelot();
