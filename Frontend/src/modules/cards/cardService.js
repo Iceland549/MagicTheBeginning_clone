@@ -15,7 +15,7 @@ export async function getAllCards() {
  * @returns {Promise} Card data
  */
 export async function fetchCardByName(name) {
-  const { data } = await api.get(`/cards/${encodeURIComponent(name)}`);
+  const { data } = await api.get('/api/cards', { params: { name } });
   return data;
 }
 
