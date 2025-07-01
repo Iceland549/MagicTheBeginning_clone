@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { login } from './authService';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [pass, setPass]   = useState('');
+  const navigate = useNavigate();
 
   const handle = async () => {
     try {
+      console.log("Tentative de connexion avec :", { email, password: pass });
       await login({ email, password: pass });
-      window.location.href = '/cards';
-    } catch {
+      console.log('Connexion réussie, redirection vers /dashboard');
+      navigate('/dashboard', { replace: true });
+    } catch (error) {
+      console.error('Échec de la connexion', error);
       alert('Échec de la connexion');
     }
   };
