@@ -1,7 +1,7 @@
 {
   "Routes": [
     {
-      "DownstreamPathTemplate": "api/auth/{everything}",
+      "DownstreamPathTemplate": "/health",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -9,11 +9,25 @@
           "Port": 5001
         }
       ],
-      "UpstreamPathTemplate": "api/auth/{everything}",
+      "UpstreamPathTemplate": "/health",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+
+    {
+      "DownstreamPathTemplate": "/api/auth/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "auth",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/auth/{everything}",
       "UpstreamHttpMethod": [ "POST" ]
     },
+
     {
-      "DownstreamPathTemplate": "api/account/{everything}",
+      "DownstreamPathTemplate": "/api/account/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -21,8 +35,27 @@
           "Port": 5001
         }
       ],
-      "UpstreamPathTemplate": "api/account/{everything}",
+      "UpstreamPathTemplate": "/api/account/{everything}",
       "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+
+    // -------------------- CARDS --------------------
+
+    {
+      "DownstreamPathTemplate": "/api/cards",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "card",
+          "Port": 5002
+        }
+      ],
+      "UpstreamPathTemplate": "/api/cards",
+      "UpstreamHttpMethod": [ "GET" ],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
@@ -38,7 +71,30 @@
         }
       ],
       "UpstreamPathTemplate": "/api/cards/{everything}",
-      "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ]
+      "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+
+    // -------------------- DECKS --------------------
+
+    {
+      "DownstreamPathTemplate": "/api/decks",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "deck",
+          "Port": 5003
+        }
+      ],
+      "UpstreamPathTemplate": "/api/decks",
+      "UpstreamHttpMethod": [ "GET" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     },
     {
       "DownstreamPathTemplate": "/api/decks/{everything}",
@@ -51,6 +107,25 @@
       ],
       "UpstreamPathTemplate": "/api/decks/{everything}",
       "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+
+    // -------------------- GAMES --------------------
+
+    {
+      "DownstreamPathTemplate": "/api/games",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "game",
+          "Port": 5004
+        }
+      ],
+      "UpstreamPathTemplate": "/api/games",
+      "UpstreamHttpMethod": [ "GET" ],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
@@ -73,10 +148,9 @@
       }
     }
   ],
+
   "GlobalConfiguration": {
     "BaseUrl": "http://gateway:5000",
-    "AuthenticationOptions": {
-      "AuthenticationProviderKey": "Bearer"
-    }
+    "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
   }
 }
