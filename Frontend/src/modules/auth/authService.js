@@ -12,6 +12,17 @@ export async function login(credentials) {
   return data;
 }
 
+export async function logout() {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (refreshToken) {
+    await api.post('/auth/logout', { refreshToken });
+  }
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  // window.location.href = '/login'; // Redirect to login page
+  return Promise.resolve(); // Ensure the function returns a promise
+}
+
 /**
  * Register a new user.
  * @param {Object} registrationData
