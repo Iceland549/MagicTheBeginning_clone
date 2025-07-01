@@ -10,11 +10,13 @@ namespace AuthMicroservice.Presentation.Controllers
     {
         private readonly LoginUseCase _login;
         private readonly RefreshTokenUseCase _refresh;
+        private readonly LogoutUseCase _logout;
 
-        public AuthController(LoginUseCase login, RefreshTokenUseCase refresh)
+        public AuthController(LoginUseCase login, RefreshTokenUseCase refresh, LogoutUseCase logout )
         {
             _login = login;
             _refresh = refresh;
+            _logout = logout;
         }
 
         [HttpPost("login")]
@@ -35,6 +37,13 @@ namespace AuthMicroservice.Presentation.Controllers
             if (jwt == null)
                 return Unauthorized("Refresh token invalide");
             return Ok(jwt);
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest req)
+        {
+            await _logout.ExecuteAsync(req.RefreshToken);
+            return NoContent();
         }
     }
 }
