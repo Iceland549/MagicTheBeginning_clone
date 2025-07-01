@@ -1,25 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { getAllCards } from './cardService';
+import React, { useState } from 'react';
+import { fetchCardByName } from './cardService';
 
 export default function CardList() {
-  const [cards, setCards] = useState([]);
+  const [search, setSearch] = useState('');
+  const [card, setCard] = useState(null);
 
-  useEffect(() => {
-    getAllCards().then(r => setCards(r.data));
-  }, []);
+  const handleSearch = async () => {
+    if (!search) return;
+    try {
+      const result = await fetchCardByName(search);
+      setCard(result);
+    } catch {
+      alert('Carte non trouvée');
+    }
+  };
 
   return (
-    <div className="section" style={{ backgroundImage: 'url(/assets/bg-cards.jpg)' }}>
-      <div className="container">
-        <h2>Cartes</h2>
-        <ul>
-          {cards.map(c => (
-            <li key={c.id}>
-              <strong>{c.name}</strong> — {c.manaCost} — {c.typeLine}
-            </li>
-          ))}
-        </ul>
-      </div>
+    <div className="card-list">
+      <h2>Recherche de cartes</h2>
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Nom de la carte"
+      />
+      <button onClick={handleSearch}>Rechercher</button>
+      {card && (
+        <div>
+          <h3>{card.name}</h3>
+          {card.imageUrl && <img src={card.imageUrl} alt={card.name} />}
+        </div>
+      )}
     </div>
   );
 }
