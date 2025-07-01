@@ -38,6 +38,7 @@ namespace AuthMicroservice.Extensions
             // UseCases
             services.AddScoped<RegisterUserUseCase>();
             services.AddScoped<LoginUseCase>();
+            services.AddScoped<LogoutUseCase>();
             services.AddScoped<RefreshTokenUseCase>();
             services.AddScoped<SeedAdminUseCase>();
             services.AddScoped<GetProfileUseCase>();
