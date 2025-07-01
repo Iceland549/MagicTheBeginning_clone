@@ -1,0 +1,33 @@
+.dashboard-bg {
+  min-height: 100vh;
+  text-align: center;
+  color: white;
+  padding-top: 3rem;
+}
+.dashboard-options {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 3rem;
+}
+.dashboard-options button {
+  background: rgba(0,0,0,0.7);
+  border: none;
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  cursor: pointer;
+  color: white;
+  font-size: 1.2rem;
+  transition: transform 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dashboard-options button:hover {
+  transform: scale(1.05);
+}
+.dashboard-options img {
+  width: 90px;
+  height: 90px;
+  margin-bottom: 1rem;
+}
