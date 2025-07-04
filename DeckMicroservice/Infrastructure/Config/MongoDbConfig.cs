@@ -5,8 +5,10 @@
     /// </summary>
     public class MongoDbConfig
     {
-        public string ConnectionString { get; set; } = string.Empty; // MongoDB connection string
-        public string Database { get; set; } = string.Empty;         // Database name
-        public string CardCollection { get; set; } = string.Empty;   // Collection name for cards (adapt if needed)
+        public string ConnectionString { get; set; } = null!;
+        public string DatabaseName { get; set; } = null!;
+        public string CardCollection { get; set; } = null!;
+        public string DeckCollection { get; set; } = null!;
+        public string GameCollection { get; set; } = null!;
     }
 }

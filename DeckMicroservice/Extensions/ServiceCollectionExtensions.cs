@@ -5,6 +5,8 @@ using DeckMicroservice.Infrastructure.Mapping;
 using DeckMicroservice.Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 
 namespace DeckMicroservice.Extensions
 {
@@ -12,16 +14,30 @@ namespace DeckMicroservice.Extensions
     {
         public static IServiceCollection AddDeckMicroserviceServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // 1. Configuration MongoDb
-            services.Configure<MongoDbConfig>(configuration.GetSection("MongoDb"));
+            // 1) Config binding
+            services.Configure<MongoDbConfig>(
+              configuration.GetSection("Mongo"));
 
-            // 2. Repository Mongo
+            // 2) MongoClient singleton
+            services.AddSingleton(sp => {
+                var cfg = sp.GetRequiredService<IOptions<MongoDbConfig>>().Value;
+                return new MongoClient(cfg.ConnectionString);
+            });
+
+            // 3) IMongoDatabase singleton
+            services.AddSingleton(sp => {
+                var cfg = sp.GetRequiredService<IOptions<MongoDbConfig>>().Value;
+                var client = sp.GetRequiredService<MongoClient>();
+                return client.GetDatabase(cfg.DatabaseName);
+            });
+
+            // 4) Repository Mongo
             services.AddScoped<IDeckRepository, MongoDeckRepository>();
 
-            // 3. AutoMapper
+            // 5) AutoMapper
             services.AddAutoMapper(typeof(AutoMapperProfile));
 
-            // 4. UseCases
+            // 6) UseCases
             services.AddScoped<CreateDeckUseCase>();
             services.AddScoped<ValidateDeckUseCase>();
             services.AddScoped<GetDecksByOwnerUseCase>();

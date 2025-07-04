@@ -2,6 +2,8 @@
 using DeckMicroservice.Application.Interfaces;
 using DeckMicroservice.Infrastructure.Persistence.Entities;
 using MongoDB.Driver;
+using Microsoft.Extensions.Options;
+using DeckMicroservice.Infrastructure.Config;
 
 namespace DeckMicroservice.Infrastructure.Persistence.Repositories
 {
@@ -9,15 +11,14 @@ namespace DeckMicroservice.Infrastructure.Persistence.Repositories
     {
         private readonly IMongoCollection<Deck> _col;
 
-        public MongoDeckRepository(IConfiguration cfg)
+        public MongoDeckRepository(IMongoDatabase db, IOptions<MongoDbConfig> mongoConfig)
         {
-            var client = new MongoClient(cfg["Mongo:ConnectionString"]);
-            var db = client.GetDatabase(cfg["Mongo:Database"]);
-            _col = db.GetCollection<Deck>(cfg["Mongo:DeckCollection"]);
+            _col = db.GetCollection<Deck>(mongoConfig.Value.DeckCollection);
         }
 
         public async Task CreateAsync(CreateDeckRequest req)
         {
+            Console.WriteLine($"Received CreateAsync request for ownerId: {req?.OwnerId ?? "null"}, name: {req?.Name ?? "unnamed"}");
             // Convert DTO to entity
             var deck = new Deck
             {
@@ -27,7 +28,9 @@ namespace DeckMicroservice.Infrastructure.Persistence.Repositories
                 { CardId = c.CardName, Quantity = c.Quantity })
                     .ToList()
             };
+            Console.WriteLine($"Inserting deck with {deck.Cards.Count} cards");
             await _col.InsertOneAsync(deck);
+            Console.WriteLine($"Deck inserted for ownerId: {deck.OwnerId}, name: {deck.Name}");
         }
 
         public async Task<List<DeckDto>> GetByOwnerAsync(string ownerId)
