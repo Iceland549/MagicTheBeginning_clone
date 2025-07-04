@@ -22,7 +22,8 @@ services:
     networks:
       - mtb-net
     volumes:
-      - magic-mongo-data:/data/db
+      - ./mongo-data:/data/db
+    command: mongod --bind_ip_all --dbpath /data/db
 
   auth:
     build:
@@ -77,6 +78,9 @@ services:
       - "5002:5002"
     networks:
       - mtb-net
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4  
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
       interval: 10s
@@ -185,6 +189,6 @@ networks:
   mtb-net:
     driver: bridge
 
-volumes:
-  magic-mongo-data:
+# volumes:
+#   magic-mongo-data:
 
