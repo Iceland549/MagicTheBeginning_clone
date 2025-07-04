@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { startGame, getGameState, playCard } from './gameService';
+import { useNavigate } from 'react-router-dom';
+
 
 export default function GameBoard() {
   const [gameId, setGameId] = useState('');
   const [state, setState]   = useState(null);
+    const navigate = useNavigate();
+
 
   const init = async () => {
     const { data } = await startGame({ playerOneId: 'P1', playerTwoId: 'P2' });
@@ -24,6 +28,9 @@ export default function GameBoard() {
   return (
     <div className="section" style={{ backgroundImage: 'url(/assets/bg-game.jpg)' }}>
       <div className="container">
+        <button className="btn-back" onClick={() => navigate('/dashboard')}>
+          ← Retour au Dashboard
+        </button>
         <h2>Plateau de jeu</h2>
         {!state && <button className="btn" onClick={init}>Démarrer la partie</button>}
         {state && (
