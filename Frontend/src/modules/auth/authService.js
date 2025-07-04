@@ -9,6 +9,7 @@ export async function login(credentials) {
   const { data } = await api.post("/auth/login", credentials);
   localStorage.setItem("accessToken", data.accessToken);
   localStorage.setItem("refreshToken", data.refreshToken);
+  localStorage.setItem("userId",       data.userId);  
   return data;
 }
 
