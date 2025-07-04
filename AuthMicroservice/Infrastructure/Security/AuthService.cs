@@ -63,7 +63,8 @@ namespace AuthMicroservice.Infrastructure.Security
             {
                 AccessToken = accessToken,
                 RefreshToken = refreshTokenValue,
-                ExpiresAt = expiresAt
+                ExpiresAt = expiresAt,
+                UserId = user.Id
             };
         }
 
