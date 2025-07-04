@@ -8,6 +8,8 @@ using GameMicroservice.Infrastructure.Persistence;
 using GameMicroservice.Infrastructure.Persistence.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 using System.Text;
 
 namespace GameMicroservice.Extensions
@@ -16,26 +18,40 @@ namespace GameMicroservice.Extensions
     {
         public static IServiceCollection AddGameMicroserviceServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // 1. Config MongoDB
-            services.Configure<MongoDbConfig>(configuration.GetSection("Mongo"));
+            // Config binding
+            services.Configure<MongoDbConfig>(
+              configuration.GetSection("Mongo"));
 
-            // 2. Repository MongoDB pour les sessions de jeu
+            // MongoClient singleton
+            services.AddSingleton(sp => {
+                var cfg = sp.GetRequiredService<IOptions<MongoDbConfig>>().Value;
+                return new MongoClient(cfg.ConnectionString);
+            });
+
+            // IMongoDatabase singleton
+            services.AddSingleton(sp => {
+                var cfg = sp.GetRequiredService<IOptions<MongoDbConfig>>().Value;
+                var client = sp.GetRequiredService<MongoClient>();
+                return client.GetDatabase(cfg.DatabaseName);
+            });
+
+            // Repository MongoDB pour les sessions de jeu
             services.AddScoped<IGameSessionRepository, MongoGameSessionRepository>();
 
-            // 3. Clients HTTP pour les cartes et les decks
+            // Clients HTTP pour les cartes et les decks
             services.AddHttpClient<ICardClient, CardHttpClient>();
             services.AddHttpClient<IDeckClient, DeckHttpClient>();
 
-            // 4. Moteur de règles du jeu
+            // Moteur de règles du jeu
             services.AddScoped<IGameRulesEngine, GameRulesEngine>();
 
-            // 5. Moteur d'IA
+            // Moteur d'IA
             services.AddScoped<IAIEngine, RandomAIEngine>();
 
-            // 6. AutoMapper pour les mappings entre entités et DTOs
+            // AutoMapper pour les mappings entre entités et DTOs
             services.AddAutoMapper(typeof(AutoMapperProfile));
 
-            // 7. Use Cases
+            // Use Cases
             services.AddScoped<StartGameUseCase>();
             services.AddScoped<PlayCardUseCase>();
             services.AddScoped<GetGameStateUseCase>();

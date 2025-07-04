@@ -7,6 +7,8 @@ using MongoDB.Driver;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using GameMicroservice.Domain;
+using Microsoft.Extensions.Options;
+using GameMicroservice.Infrastructure.Config;
 
 namespace GameMicroservice.Infrastructure.Persistence
 {
@@ -18,11 +20,9 @@ namespace GameMicroservice.Infrastructure.Persistence
         private readonly ICardClient _cardClient;
 
 
-        public MongoGameSessionRepository(IConfiguration cfg, IMapper mapper, IDeckClient deckClient, ICardClient cardClient)
+        public MongoGameSessionRepository(IMongoDatabase db, IOptions<MongoDbConfig> mongoConfig, IMapper mapper, IDeckClient deckClient, ICardClient cardClient)
         {
-            var client = new MongoClient(cfg["Mongo:ConnectionString"]);
-            var db = client.GetDatabase(cfg["Mongo:Database"]);
-            _col = db.GetCollection<GameSession>(cfg["Mongo:GameCollection"]);
+            _col = db.GetCollection<GameSession>(mongoConfig.Value.GameCollection);
             _mapper = mapper;
             _deckClient = deckClient;
             _cardClient = cardClient;
