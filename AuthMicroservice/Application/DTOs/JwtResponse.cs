@@ -19,5 +19,7 @@
         /// Expiration time of the access token in UTC.
         /// </summary>
         public DateTime ExpiresAt { get; set; }
+
+        public string UserId { get; set; } = null!;  
     }
 }
