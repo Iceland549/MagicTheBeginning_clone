@@ -5,26 +5,30 @@ const SelectionContext = createContext();
 export function SelectionProvider({ children }) {
   const [selection, setSelection] = useState([]);
 
-  const addCard = (card) => {
-    console.log('Attempting to add card:', card); // Log pour déboguer
+  const addCard = (card, quantity = 1) => {
+    console.log('Attempting to add card:', JSON.stringify(card, null, 2), 'Quantity:', quantity);
     setSelection(prev => {
-      const found = prev.find(c => c.cardName === card.name);
+      const found = prev.find(c => c.id === card.id);
       if (found) {
-        return prev.map(c => c.cardName === card.name ? { ...c, quantity: c.quantity + 1 } : c);
+        return prev.map(c =>
+          c.id === card.id ? { ...c, quantity: (c.quantity || 1) + quantity } : c
+        );
       }
-      return [...prev, { cardName: card.name, quantity: 1, image_url: card.image_url }];
+      return [...prev, { ...card, quantity }];
     });
   };
 
-  const removeCard = (cardName) => {
+  const removeCard = (card) => {
+    console.log('Attempting to remove card:', JSON.stringify(card, null, 2));
     setSelection(prev =>
       prev
-        .map(c => c.cardName === cardName ? { ...c, quantity: c.quantity - 1 } : c)
-        .filter(c => c.quantity > 0) // enlève la carte si quantité arrive à 0
+        .map(c => c.id === card.id ? { ...c, quantity: (c.quantity || 1) - 1 } : c)
+        .filter(c => c.quantity > 0)
     );
   };
 
   const clearSelection = () => {
+    console.log('Clearing selection');
     setSelection([]);
   };
 
