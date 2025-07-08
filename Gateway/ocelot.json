@@ -56,10 +56,7 @@
       ],
       "UpstreamPathTemplate": "/api/cards",
       "UpstreamHttpMethod": [ "GET" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "AuthenticationOptions": {}
     },
     {
       "DownstreamPathTemplate": "/api/cards/{everything}",
@@ -72,10 +69,7 @@
       ],
       "UpstreamPathTemplate": "/api/cards/{everything}",
       "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "AuthenticationOptions": {} 
     },
 
     // -------------------- DECKS --------------------
@@ -90,11 +84,8 @@
         }
       ],
       "UpstreamPathTemplate": "/api/decks",
-      "UpstreamHttpMethod": [ "GET" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "AuthenticationOptions": {}
     },
     {
       "DownstreamPathTemplate": "/api/decks/{everything}",
@@ -107,10 +98,7 @@
       ],
       "UpstreamPathTemplate": "/api/decks/{everything}",
       "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "AuthenticationOptions": {}
     },
 
     // -------------------- GAMES --------------------
@@ -126,10 +114,7 @@
       ],
       "UpstreamPathTemplate": "/api/games",
       "UpstreamHttpMethod": [ "GET" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "AuthenticationOptions": {}
     },
     {
       "DownstreamPathTemplate": "/api/games/{everything}",
@@ -142,15 +127,12 @@
       ],
       "UpstreamPathTemplate": "/api/games/{everything}",
       "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "AuthenticationOptions": {}
     }
   ],
 
   "GlobalConfiguration": {
-    "BaseUrl": "http://gateway:5000",
-    "AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
+    "BaseUrl": "http://gateway:5000"
+    //"AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
   }
 }
