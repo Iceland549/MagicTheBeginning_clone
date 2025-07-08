@@ -6,6 +6,6 @@ namespace DeckMicroservice.Application.Interfaces
     {
         Task CreateAsync(CreateDeckRequest deck);
         Task<List<DeckDto>> GetByOwnerAsync(string ownerId);
-        bool Validate(CreateDeckRequest deck);
+        Task<bool> ValidateAsync(CreateDeckRequest deck);
     }
 }
