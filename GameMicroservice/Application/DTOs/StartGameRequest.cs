@@ -13,6 +13,6 @@
         /// <summary>
         /// ID of the second player.
         /// </summary>
-        public string PlayerTwoId { get; set; } = null!;
+        public string PlayerTwoId { get; set; } = null!; public string DeckId { get; set; } = null!; 
     }
 }
