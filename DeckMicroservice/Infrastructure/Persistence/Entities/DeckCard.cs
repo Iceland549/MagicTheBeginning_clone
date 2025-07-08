@@ -8,8 +8,8 @@ namespace DeckMicroservice.Infrastructure.Persistence.Entities
     /// </summary>
     public class DeckCard
     {
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string CardId { get; set; } = null!;             // CardEntity id or simply the name
+        [BsonElement("cardName")]
+        public string CardName { get; set; } = null!;             
 
         [BsonElement("quantity")]
         public int Quantity { get; set; }                       // Number of copies of this card
