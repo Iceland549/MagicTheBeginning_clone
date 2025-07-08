@@ -6,6 +6,7 @@ import { useSelection } from '../context/selectionContext';
 export default function CardList() {
   const [search, setSearch] = useState('');
   const [card, setCard] = useState(null);
+  const [quantity, setQuantity] = useState(1); // Ajout d'un état pour la quantité
   const [feedback, setFeedback] = useState('');
   const navigate = useNavigate();
   const { addCard } = useSelection();
@@ -14,7 +15,7 @@ export default function CardList() {
     if (!search) return;
     try {
       const result = await fetchCardByName(search);
-      console.log('Card data:', result); // Log pour vérifier les données
+      console.log('Card data fetched:', JSON.stringify(result, null, 2));
       setCard(result);
       setFeedback('');
     } catch (error) {
@@ -26,14 +27,16 @@ export default function CardList() {
 
   const handleAddToDeck = () => {
     if (!card) return;
-    console.log('Adding card to deck:', card); // Log avant ajout
-    addCard(card);
-    setFeedback(`La carte "${card.name}" a été ajoutée à ton deck !`);
+    console.log('Adding card to deck:', JSON.stringify(card, null, 2), 'Quantity:', quantity);
+    addCard(card, quantity);
+    setFeedback(`La carte "${card.name}" (x${quantity}) a été ajoutée à ton deck !`);
+    setQuantity(1); // Réinitialiser la quantité après ajout
   };
 
   return (
-    <div className="section"style={{
-      backgroundImage: `url(${process.env.PUBLIC_URL}/assets/bg-cards.jpg)`}}>
+    <div className="section" style={{
+      backgroundImage: `url(${process.env.PUBLIC_URL}/assets/bg-cards.jpg)`
+    }}>
       <div className="container">
         <button className="btn-back" onClick={() => navigate('/dashboard')}>
           ← Retour au Dashboard
@@ -57,6 +60,17 @@ export default function CardList() {
                 onError={(e) => console.error('Image failed to load:', card.image_url)}
               />
             )}
+            <div>
+              <label>Quantité : </label>
+              <select
+                value={quantity}
+                onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
+              >
+                {Array.from({ length: card.type_line && card.type_line.toLowerCase().includes('land') ? 20 : 4 }, (_, i) => i + 1).map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
             <button className="btn" onClick={handleAddToDeck}>
               Ajouter au deck
             </button>
