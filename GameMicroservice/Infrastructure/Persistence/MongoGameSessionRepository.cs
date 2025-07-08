@@ -28,22 +28,22 @@ namespace GameMicroservice.Infrastructure.Persistence
             _cardClient = cardClient;
         }
 
-        public async Task<GameSession> CreateAsync(string p1, string p2)
+        public async Task<GameSession> CreateAsync(string playerOneId, string playerTwoId, string deckId)
         {
+            // Fetch the player's deck using the provided deckId
+            var p1Decks = await _deckClient.GetDecksByOwnerAsync(playerOneId);
+            var p1Deck = p1Decks.FirstOrDefault(d => d.Id == deckId)
+                         ?? throw new InvalidOperationException($"No deck found with ID {deckId} for player {playerOneId}");
 
-            // Récupérer les decks via l'API Gateway
-            var p1Decks = await _deckClient.GetDecksByOwnerAsync(p1);
-            var p2Decks = await _deckClient.GetDecksByOwnerAsync(p2);
+            // For AI opponent, select a default deck or handle differently
+            var p2Decks = await _deckClient.GetDecksByOwnerAsync(playerTwoId);
+            var p2Deck = p2Decks.FirstOrDefault() ?? throw new InvalidOperationException($"No deck found for player {playerTwoId}");
 
-            // Sélectionner le premier deck valide pour chaque joueur (simplification)
-            var p1Deck = p1Decks.FirstOrDefault() ?? throw new InvalidOperationException($"No deck found for player {p1}");
-            var p2Deck = p2Decks.FirstOrDefault() ?? throw new InvalidOperationException($"No deck found for player {p2}");
-
-            // Convertir DeckDto.Cards en List<string> (cardName ou cardId)
+            // Convert DeckDto.Cards to List<string> (cardName or cardId)
             var p1Library = p1Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardName, c.Quantity)).ToList();
             var p2Library = p2Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardName, c.Quantity)).ToList();
 
-            // Mélanger les bibliothèques
+            // Shuffle the libraries
             p1Library = Shuffle(p1Library);
             p2Library = Shuffle(p2Library);
 
