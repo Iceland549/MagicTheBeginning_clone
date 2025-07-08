@@ -1,6 +1,8 @@
 ﻿using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using GameMicroservice.Application.DTOs;
+
 
 namespace GameMicroservice.Infrastructure
 {
@@ -16,7 +18,7 @@ namespace GameMicroservice.Infrastructure
 
         public async Task<CardDto?> GetCardByIdAsync(string cardId)
         {
-            var response = await _client.GetAsync($"/card/api/cards/{cardId}");
+            var response = await _client.GetAsync($"/api/cards/{cardId}");
             if (!response.IsSuccessStatusCode)
                 return null;
 
