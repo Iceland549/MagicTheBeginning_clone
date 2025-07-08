@@ -32,9 +32,9 @@ namespace GameMicroservice.Application.UseCases
         /// <param name="p1">ID of the first player.</param>
         /// <param name="p2">ID of the second player.</param>
         /// <returns>The created game session DTO.</returns>
-        public async Task<GameSessionDto> ExecuteAsync(string p1, string p2)
+        public async Task<GameSessionDto> ExecuteAsync(string p1, string p2, string deckId)
         {
-            var gameSession = await _repo.CreateAsync(p1, p2);
+            var gameSession = await _repo.CreateAsync(p1, p2, deckId);
             return _mapper.Map<GameSessionDto>(gameSession);
         }
     }
