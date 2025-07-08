@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { getAllCards } from '../cards/cardService';
 import { createDeck, getDecks, validateDeck } from './deckService';
 import { useSelection } from '../context/selectionContext';
+import { CardGrid } from '../cardGrid/CardGrid';
+import './DeckBuilder.css'; 
 
 export default function DeckBuilder() {
   const { selection, clearSelection, addCard, removeCard } = useSelection();
@@ -11,39 +13,121 @@ export default function DeckBuilder() {
   const [deckName, setDeckName] = useState('');
   const ownerId = localStorage.getItem('userId'); 
   const [mesDecks, setMesDecks] = useState([]);
-
+  const [quantities, setQuantities] = useState({});
 
   useEffect(() => {
-      getAllCards()
-        .then(r => {
-          console.log('Cards fetched in DeckBuilder:', r); 
-          setCards(r || []);
-        })
-        .catch(error => {
-          console.error('Erreur lors de getAllCards:', error);
-          setCards([]);
-        });
-      getDecks(ownerId)
-      .then(response => setMesDecks(response.data || []))
+    getAllCards()
+      .then(r => {
+        console.log('Cards fetched in DeckBuilder:', JSON.stringify(r, null, 2));
+        setCards(r || []);
+      })
+      .catch(error => {
+        console.error('Erreur lors de getAllCards:', error);
+        setCards([]);
+      });
+
+    if (!ownerId) {
+      console.error('Owner ID missing, user needs to login');
+      navigate('/login');
+      return;
+    }
+
+    getDecks(ownerId)
+      .then(response => {
+        console.log('Decks fetched:', JSON.stringify(response.data, null, 2));
+        setMesDecks(response.data || []);
+      })
       .catch(error => {
         console.error("Erreur chargement decks", error);
         setMesDecks([]);
       });
-  }, [ownerId]);
+  }, [ownerId, navigate]);
 
+  const validateDeckLocally = () => {
+    console.log('Validating deck locally with selection:', JSON.stringify(selection, null, 2));
+    if (!deckName.trim()) {
+      return { isValid: false, error: 'Le nom du deck est requis' };
+    }
 
-const handleCreate = async () => {
-  const req = { ownerId, name: deckName, cards: selection };
-  console.log('Creating deck with:', req); // Log de la requête
-  const result = await validateDeck(req);
-  console.log('Validation result:', result.data); // Log du résultat de validation
-  const valid = result.data?.isValid ?? false;
-  if (!valid) return alert('Deck invalide');
-  const response = await createDeck(req);
-  console.log('Deck creation response:', response); // Log de la réponse
-  alert('Deck créé');
-  clearSelection();
-};
+    if (selection.length === 0) {
+      return { isValid: false, error: 'Aucune carte sélectionnée' };
+    }
+
+    const totalCards = selection.reduce((sum, card) => sum + (card.quantity || 1), 0);
+    if (totalCards < 60) {
+      return { isValid: false, error: `Le deck doit contenir au moins 60 cartes, actuellement ${totalCards}` };
+    }
+
+    let landCount = 0;
+    for (const card of selection) {
+      const quantity = card.quantity || 1;
+      console.log(`Checking card: ${card.name}, ID: ${card.id}, Quantity: ${quantity}, TypeLine: ${card.type_line || 'undefined'}`);
+      const isLand = card.type_line && card.type_line.toLowerCase().includes('land');
+      if (quantity > 4 && !isLand) {
+        return { isValid: false, error: `La carte ${card.name} dépasse la limite de 4 exemplaires (actuellement ${quantity})` };
+      }
+      if (isLand) {
+        landCount += quantity;
+      }
+    }
+
+    if (landCount < 20) {
+      return { isValid: false, error: `Le deck doit contenir au moins 20 terrains, actuellement ${landCount}` };
+    }
+
+    return { isValid: true, error: '' };
+  };
+
+  const handleCreate = async () => {
+    if (!ownerId) {
+      alert('Erreur : utilisateur non connecté');
+      return;
+    }
+
+    const localValidation = validateDeckLocally();
+    if (!localValidation.isValid) {
+      console.log('Local validation failed:', localValidation.error);
+      alert(`Erreur : ${localValidation.error}`);
+      return;
+    }
+
+    const req = {
+      OwnerId: ownerId,
+      Name: deckName,
+      Cards: selection.map(card => ({
+        CardName: card.name,
+        Quantity: card.quantity || 1
+      }))
+    };
+
+    console.log('Creating deck with:', JSON.stringify(req, null, 2));
+    try {
+      const result = await validateDeck(req);
+      console.log('Validation result:', JSON.stringify(result.data, null, 2));
+      const valid = result.data?.isValid ?? false;
+      if (!valid) {
+        const errorMessage = result.data?.error || 'Deck invalide : vérifiez les cartes et les quantités';
+        console.log('Server validation failed:', errorMessage);
+        alert(errorMessage);
+        return;
+      }
+
+      const response = await createDeck(req);
+      console.log('Deck creation response:', JSON.stringify(response, null, 2));
+      alert('Deck créé avec succès');
+      clearSelection();
+      setDeckName('');
+
+      const updatedDecks = await getDecks(ownerId);
+      console.log('Updated decks:', JSON.stringify(updatedDecks.data, null, 2));
+      setMesDecks(updatedDecks.data || []);
+    } catch (error) {
+      console.error('Error creating deck:', error.response?.data || error.message);
+      alert(`Erreur lors de la création du deck : ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  console.log('Current selection:', JSON.stringify(selection, null, 2));
 
   return (
     <div className="section" style={{ backgroundImage: 'url(/assets/bg-deck.jpg)' }}>
@@ -67,55 +151,30 @@ const handleCreate = async () => {
             <p>Aucun deck créé pour le moment</p>
           )}
         </div>
-        <div>
-          <h3>Cartes disponibles</h3>
-           <ul>
-          {cards.map(card => (
-              <li key={card.name}>
-                {card.name}
-                {card.image_url && (
-                  <img
-                    src={card.image_url}
-                    alt={card.name}
-                    width="50"
-                    onError={() => console.error('Image failed to load:', card.image_url)}
-                  />
-                )}
-                <button
-                  className="btn-add"
-                  onClick={() => addCard(card)}
-                >
-                  +
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h3>Ma sélection</h3>
-          <ul>
-            {selection.map(c => (
-              <li key={c.cardName}>
-                {c.cardName} × {c.quantity}
-                {c.image_url && (
-                  <img
-                    src={c.image_url}
-                    alt={c.cardName}
-                    width="100"
-                    onError={(e) => console.error('Image failed to load:', c.image_url)}
-                  />
-                )}
-                <button
-                  className="btn-remove"
-                  onClick={() => removeCard(c.cardName)}
-                  style={{ marginLeft: '10px' }}
-                > 
-                  -
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+
+        <CardGrid
+          title="Cartes disponibles"
+          cards={cards}
+          onCardAction={(card, qty) => {
+            console.log(`Adding card: ${card.name}, ID: ${card.id}, Quantity: ${qty}`);
+            addCard(card, qty);
+          }}
+          actionLabel="+"
+          showQuantitySelector={true}
+          quantities={quantities}
+          setQuantities={setQuantities}
+        />
+
+        <CardGrid
+          title="Ma sélection"
+          cards={selection}
+          onCardAction={(card) => {
+            console.log(`Removing card: ${card.name}, ID: ${card.id}`);
+            removeCard(card);
+          }}
+          actionLabel="-"
+        />
+
         <button className="btn" onClick={handleCreate}>Créer le deck</button>
       </div>
     </div>
