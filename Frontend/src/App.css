@@ -37,11 +37,24 @@
   z-index: -1;
 }
 
+.section, .container, .deck-section, .dashboard-options, .card-grid, .card-item, .feedback {
+  background-color: rgba(255, 255, 255, 0.85); 
+  color: #000;                              
+  padding: 1rem;
+  border-radius: 10px;                         
+}
+
+
+.section, .container {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+
 h2 {
   color: black;
 }
 
-/* Simple fade-in animation */
+/* fade-in animation */
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -52,7 +65,6 @@ h2 {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
-  /* backdrop-filter: brightness(0.7); */
 }
 
 /* Button styling */
@@ -79,14 +91,14 @@ input, textarea {
 
 /* Logo */
 .logo {
-  width: 50vw;                  /* taille responsive : 40% de la largeur écran */
-  max-width: 320px;             /* limite max (comme ton ancienne valeur fixe) */
-  min-width: 100px;             /* taille minimale pour mobile */
+  width: 50vw;         
+  max-width: 320px;            
+  min-width: 100px;            
   display: block;
   margin: 1rem auto;
 
-  border-radius: 1rem;           /* rond si image carrée */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* petite ombre douce */
+  border-radius: 1rem;         
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); 
   transition: transform 0.2s ease;
 }
 
