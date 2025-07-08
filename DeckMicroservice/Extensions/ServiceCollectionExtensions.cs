@@ -2,9 +2,8 @@
 using DeckMicroservice.Application.UseCases;
 using DeckMicroservice.Infrastructure.Config;
 using DeckMicroservice.Infrastructure.Mapping;
-using DeckMicroservice.Infrastructure.Persistence.Repositories;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+using DeckMicroservice.Infrastructure.Repositories;
+using DeckMicroservice.Infrastructure.Clients;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
@@ -30,6 +29,9 @@ namespace DeckMicroservice.Extensions
                 var client = sp.GetRequiredService<MongoClient>();
                 return client.GetDatabase(cfg.DatabaseName);
             });
+
+            services.AddHttpClient<ICardClient, CardHttpClient>();
+
 
             // 4) Repository Mongo
             services.AddScoped<IDeckRepository, MongoDeckRepository>();
