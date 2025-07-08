@@ -11,7 +11,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="dashboard-bg" style={{ backgroundImage: 'url(/assets/bg-cards.jpg)' }}>
+    <div className="dashboard-bg" style={{ backgroundImage: 'url(/assets/endless-ranks-of-the-dead.jpg)' }}>
       <h1>Magic The Beginning</h1>
       <div className="dashboard-options">
         <button onClick={() => navigate('/cards')}>
@@ -26,7 +26,10 @@ export default function Dashboard() {
           <img src="/assets/bg-game.jpg" alt="Game" />
           <span>Play Game</span>
         </button>
-        <button onClick={handleLogout}>Déconnexion</button>
+        <button onClick={handleLogout}>
+          <img src="/assets/dark-ritual.jpg" alt="Deconnexion" />
+          <span>Deconnexion</span>
+        </button>
       </div>
     </div>
   );
