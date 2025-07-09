@@ -6,27 +6,40 @@ using System.Linq;
 
 namespace GameMicroservice.Infrastructure.AI
 {
-    /// <summary>
-    /// Simple random AI: picks the first valid action.
-    /// </summary>
     public class RandomAIEngine : IAIEngine
     {
-        public PlayerActionDto? DecideNextAction(PlayerState state, GameSession session, List<CardInGame> hand)
+        public PlayerActionDto? DecideNextAction(PlayerState aiState, GameSession session, List<CardInGame> hand)
         {
-            var playerId = state.PlayerId;
-            var battlefieldKey = $"{playerId}_battlefield";
-            var battlefield = session.Zones.ContainsKey(battlefieldKey) ? session.Zones[battlefieldKey] : new List<CardInGame>();
+            // 1. Si possible, jouer un terrain
+            var land = hand.FirstOrDefault(c => c.TypeLine != null && c.TypeLine.Contains("Land"));
+            if (land != null && aiState.LandsPlayedThisTurn < 1)
+            {
+                return new PlayerActionDto
+                {
+                    PlayerId = aiState.PlayerId,
+                    Type = ActionType.PlayLand,
+                    CardId = land.CardId
+                };
+            }
 
-            // If can draw
-            if (!state.HasDrawnThisTurn)
-                return new PlayerActionDto { Type = ActionType.Draw };
+            // 2. Sinon, jouer le premier sort possible (hors terrain)
+            var spell = hand.FirstOrDefault(c => c.TypeLine != null && !c.TypeLine.Contains("Land"));
+            if (spell != null)
+            {
+                return new PlayerActionDto
+                {
+                    PlayerId = aiState.PlayerId,
+                    Type = ActionType.PlayCard,
+                    CardId = spell.CardId
+                };
+            }
 
-            // If can play a land
-            if (battlefield.Count < state.LandsPlayedThisTurn + 1 && hand.Any())
-                return new PlayerActionDto { Type = ActionType.PlayLand, CardId = hand.First().CardId };
-
-            // Otherwise end turn
-            return new PlayerActionDto { Type = ActionType.EndTurn };
+            // 3. Sinon, finir le tour
+            return new PlayerActionDto
+            {
+                PlayerId = aiState.PlayerId,
+                Type = ActionType.EndTurn
+            };
         }
     }
 }

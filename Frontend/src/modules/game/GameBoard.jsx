@@ -5,6 +5,10 @@ import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import './GameBoard.css';
 
+import PlayerZone from './PlayerZone';
+import GameActions from './GameActions';
+import Library from './Library';
+
 export default function GameBoard() {
   const [gameId, setGameId] = useState('');
   const [state, setState] = useState(null);
@@ -15,7 +19,6 @@ export default function GameBoard() {
   const navigate = useNavigate();
   const playerId = localStorage.getItem('userId');
 
-  // Récupération des decks
   useEffect(() => {
     if (!playerId) {
       navigate('/login');
@@ -26,7 +29,6 @@ export default function GameBoard() {
       .catch(() => setDecks([]));
   }, [playerId, navigate]);
 
-  // Rafraîchit la partie
   const refresh = async () => {
     if (!gameId) return;
     setLoading(true);
@@ -39,7 +41,6 @@ export default function GameBoard() {
     setLoading(false);
   };
 
-  // Démarre une partie
   const init = async () => {
     if (!deckP1 || !deckP2) {
       alert('Sélectionne un deck pour chaque joueur');
@@ -62,7 +63,6 @@ export default function GameBoard() {
     setLoading(false);
   };
 
-  // Joue une carte ou effectue une action
   const onPlay = async (cardId, actionType = 'PlayCard') => {
     if (!gameId) return;
     setLoading(true);
@@ -75,12 +75,9 @@ export default function GameBoard() {
     setLoading(false);
   };
 
-  // Appelle le tour de l'IA si c'est à elle de jouer
   useEffect(() => {
     if (
       state &&
-      state.activePlayerId &&
-      state.playerTwoId &&
       state.activePlayerId === state.playerTwoId
     ) {
       setLoading(true);
@@ -89,76 +86,58 @@ export default function GameBoard() {
         .catch(() => setLoading(false));
     }
     // eslint-disable-next-line
-  }, [state && state.activePlayerId]);
+  }, [state?.activePlayerId]);
 
-  // Decks non assignés
   const availableDecks = decks.filter(
     d => (!deckP1 || d.id !== deckP1.id) && (!deckP2 || d.id !== deckP2.id)
   );
 
-  // Détermine l'action possible selon la phase
-  const renderActions = () => {
-    if (!state) return null;
-    if (state.activePlayerId !== playerId) {
-      return <div>En attente de l’IA...</div>;
-    }
+  const buildActions = () => {
+    if (!state || state.activePlayerId !== playerId) return [];
+
+    const hand = state.zones[`${playerId}_hand`] || [];
+
+    const landCards = hand.filter(c => c.typeLine?.includes('Land'));
+    const spellCards = hand.filter(c => !c.typeLine?.includes('Land'));
+
+    const actions = [];
+
+    landCards.forEach(card => {
+      actions.push({
+        label: `Jouer Terrain: ${card.cardId}`,
+        type: 'PlayLand',
+        cardId: card.cardId
+      });
+    });
+
+    spellCards.forEach(card => {
+      actions.push({
+        label: `Jouer Sort: ${card.cardId}`,
+        type: 'PlayCard',
+        cardId: card.cardId
+      });
+    });
+
     switch (state.currentPhase) {
-      case 'Draw':
-        return (
-          <button className="btn" onClick={refresh}>
-            Piocher (rafraîchir)
-          </button>
-        );
       case 'Main':
-        return (
-          <>
-            <div>
-              <b>Jouer un terrain :</b>
-              <ul>
-                {(state.zones[`${playerId}_hand`] || [])
-                  .filter(card => card.typeLine && card.typeLine.includes('Land'))
-                  .map((card, i) => (
-                    <li key={i} className="card-mini">
-                      {card.cardId}
-                      <button className="btn-play" onClick={() => onPlay(card.cardId, 'PlayLand')}>Jouer Terrain</button>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-            <div>
-              <b>Jouer un sort :</b>
-              <ul>
-                {(state.zones[`${playerId}_hand`] || [])
-                  .filter(card => !card.typeLine || !card.typeLine.includes('Land'))
-                  .map((card, i) => (
-                    <li key={i} className="card-mini">
-                      {card.cardId}
-                      <button className="btn-play" onClick={() => onPlay(card.cardId, 'PlayCard')}>Jouer Sort</button>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-            <button className="btn" onClick={() => onPlay(null, 'PassToCombat')}>Passer à la phase de combat</button>
-            <button className="btn" onClick={() => onPlay(null, 'EndTurn')}>Finir le tour</button>
-          </>
-        );
+        actions.push({ label: 'Passer à la phase de combat', type: 'PassToCombat' });
+        actions.push({ label: 'Finir le tour', type: 'EndTurn' });
+        break;
       case 'Combat':
-        return (
-          <>
-            <div>
-              <b>Phase de combat :</b>
-              {/* Pour l’instant, bouton pour finir la phase */}
-              <button className="btn" onClick={() => onPlay(null, 'PreEnd')}>Fin de combat</button>
-            </div>
-          </>
-        );
+        actions.push({ label: 'Fin de combat', type: 'PreEnd' });
+        break;
       case 'End':
-        return (
-          <button className="btn" onClick={() => onPlay(null, 'EndTurn')}>Finir le tour</button>
-        );
+        actions.push({ label: 'Finir le tour', type: 'EndTurn' });
+        break;
       default:
-        return null;
+        break;
     }
+
+    return actions;
+  };
+
+  const handleAction = async (action) => {
+    await onPlay(action.cardId || null, action.type);
   };
 
   return (
@@ -173,6 +152,7 @@ export default function GameBoard() {
           ← Retour au Dashboard
         </button>
         <h2>Plateau de jeu</h2>
+
         {!state && (
           <>
             <div className="available-decks-zone">
@@ -221,95 +201,36 @@ export default function GameBoard() {
           </>
         )}
 
-        {state && state.zones && (
-          <div className="magic-board">
-            {/* Zone IA */}
-            <div className="player-zone ai-zone">
-              <h4>IA</h4>
-              <div className="hand-zone">
-                <span>Main IA :</span>
-                <ul>
-                  {(state.zones[`${state.playerTwoId}_hand`] || []).map((card, i) => (
-                    <li key={i} className="card-mini">{card.cardId}</li>
-                  ))}
-                </ul>
+        {state && (
+          <>
+            <div className="magic-board">
+              <PlayerZone
+                playerId={state.playerTwoId}
+                zones={state.zones}
+                isPlayable={false}
+              />
+              <div className="center-zone">
+                <Library count={state.zones[`${state.playerTwoId}_library`]?.length || 0} />
+                <div className="vs-label">VS</div>
+                <Library count={state.zones[`${playerId}_library`]?.length || 0} />
               </div>
-              <div className="battlefield-zone">
-                <span>Champ de bataille IA</span>
-                <ul>
-                  {(state.zones[`${state.playerTwoId}_battlefield`] || []).map((card, i) => (
-                    <li key={i} className="card-mini">{card.cardId}</li>
-                  ))}
-                </ul>
+              <PlayerZone
+                playerId={playerId}
+                zones={state.zones}
+                onPlayCard={onPlay}
+                isPlayable={state.activePlayerId === playerId}
+              />
+              <div className="game-status">
+                <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
+                <p>Phase : {state.currentPhase}</p>
+                <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
+                <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
               </div>
-              <div className="graveyard-zone">
-                <span>Cimetière IA</span>
-                <ul>
-                  {(state.zones[`${state.playerTwoId}_graveyard`] || []).map((card, i) => (
-                    <li key={i} className="card-mini">{card.cardId}</li>
-                  ))}
-                </ul>
-              </div>
+              <GameActions actions={buildActions()} onAction={handleAction} />
+              <button className="btn" onClick={refresh} disabled={loading}>Rafraîchir</button>
+              {loading && <div>Chargement...</div>}
             </div>
-
-            {/* Zone centrale */}
-            <div className="center-zone">
-              <div className="deck-pile">
-                Deck IA : {state.zones[`${state.playerTwoId}_library`]?.length || 0}
-              </div>
-              <div className="vs-label">VS</div>
-              <div className="deck-pile">
-                Deck Joueur : {state.zones[`${playerId}_library`]?.length || 0}
-              </div>
-            </div>
-
-            {/* Zone Joueur */}
-            <div className="player-zone human-zone">
-              <h4>Toi</h4>
-              <div className="hand-zone">
-                <span>Ta main :</span>
-                <ul>
-                  {(state.zones[`${playerId}_hand`] || []).map((card, i) => (
-                    <li key={i} className="card-mini">
-                      {card.cardId}
-                      {/* Les boutons d'action sont dans renderActions */}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="battlefield-zone">
-                <span>Ton champ de bataille</span>
-                <ul>
-                  {(state.zones[`${playerId}_battlefield`] || []).map((card, i) => (
-                    <li key={i} className="card-mini">{card.cardId}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="graveyard-zone">
-                <span>Ton cimetière</span>
-                <ul>
-                  {(state.zones[`${playerId}_graveyard`] || []).map((card, i) => (
-                    <li key={i} className="card-mini">{card.cardId}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {/* Infos de partie */}
-            <div className="game-status">
-              <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
-              <p>Phase : {state.currentPhase}</p>
-              <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
-              <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
-            </div>
-
-            {/* Actions dynamiques */}
-            <div className="actions-zone">
-              {renderActions()}
-            </div>
-            <button className="btn" onClick={refresh} disabled={loading}>Rafraîchir</button>
-            {loading && <div>Chargement...</div>}
-          </div>
+          </>
         )}
       </div>
     </div>

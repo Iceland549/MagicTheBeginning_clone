@@ -1,4 +1,5 @@
-﻿using GameMicroservice.Infrastructure.Persistence.Entities;
+﻿using GameMicroservice.Application.DTOs;
+using GameMicroservice.Infrastructure.Persistence.Entities;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -29,5 +30,11 @@ namespace GameMicroservice.Application.Interfaces
         GameSession EndTurn(GameSession s, string playerId);
         Task<GameSession> LoadSessionAsync(string sessionId);
         Task SaveSessionAsync(GameSession session);
+        bool IsBlockPhase(GameSession session, string playerId);
+        Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers);
+        Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers);
+        GameSession DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard);
+        EndGameDto? CheckEndGame(GameSession session);
+
     }
 }

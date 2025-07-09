@@ -8,16 +8,25 @@
         CastInstant,
         PassToCombat,
         Attack,
+        Block,
+        Discard,
         PreEnd,
-        EndTurn
+        EndTurn,
+        EndGame
     }
 
     public class PlayerActionDto
     {
+        public string PlayerId { get; set; } = null!; 
+
         public ActionType Type { get; set; }
         public string? CardId { get; set; }
         public List<string>? Attackers { get; set; }
         public Dictionary<string, string>? Blockers { get; set; }
         public string? TargetId { get; set; }
+        public List<string>? CardsToDiscard { get; set; }
+        public CombatActionDto? CombatAction { get; set; }
+
+
     }
 }

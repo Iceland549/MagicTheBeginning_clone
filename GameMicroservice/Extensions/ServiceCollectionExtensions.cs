@@ -52,10 +52,19 @@ namespace GameMicroservice.Extensions
             services.AddAutoMapper(typeof(AutoMapperProfile));
 
             // Use Cases
-            services.AddScoped<StartGameUseCase>();
-            services.AddScoped<PlayCardUseCase>();
-            services.AddScoped<GetGameStateUseCase>();
             services.AddScoped<AIPlayTurnUseCase>();
+            services.AddScoped<AttackUseCase>();
+            services.AddScoped<BlockUseCase>();
+            services.AddScoped<DiscardUseCase>();
+            services.AddScoped<EndGameUseCase>();
+            services.AddScoped<EndTurnUseCase>();
+            services.AddScoped<GetGameStateUseCase>();
+            services.AddScoped<GameRulesEngine>();
+            services.AddScoped<PlayCardUseCase>();
+            services.AddScoped<PlayLandUseCase>();
+            services.AddScoped<StartGameUseCase>();
+            services.AddScoped<PassPhaseUseCase>();
+
 
             return services;
         }

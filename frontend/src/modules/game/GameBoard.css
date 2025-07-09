@@ -219,8 +219,9 @@
 
 .card-mini {
   display: inline-block;
-  background: #222;
-  color: #d8b86a;
+  background: #222 !important;
+  color: #d8b86a !important;
+  border: 2px dashed red !important;
   border-radius: 6px;
   padding: 6px 11px;
   margin: 0 7px 7px 0;

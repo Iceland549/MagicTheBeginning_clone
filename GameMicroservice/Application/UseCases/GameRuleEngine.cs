@@ -1,4 +1,5 @@
-﻿using GameMicroservice.Application.Interfaces;
+﻿using GameMicroservice.Application.DTOs;
+using GameMicroservice.Application.Interfaces;
 using GameMicroservice.Domain;
 using GameMicroservice.Infrastructure;
 using GameMicroservice.Infrastructure.Persistence.Entities;
@@ -390,6 +391,36 @@ namespace GameMicroservice.Application.UseCases
                 genericMana -= deduct;
             }
         }
+        public bool IsBlockPhase(GameSession session, string playerId)
+        {
+            // Implémentation temporaire
+            return false;
+        }
+
+        public async Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
+        {
+            // Implémentation temporaire
+            await Task.CompletedTask;
+        }
+
+        public Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
+        {
+            return Task.FromResult(session);
+        }
+
+
+        public GameSession DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard)
+        {
+            // Implémentation temporaire
+            return session;
+        }
+
+        public EndGameDto? CheckEndGame(GameSession session)
+        {
+            // Implémentation temporaire
+            return null;
+        }
+
 
     }
 }

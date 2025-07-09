@@ -37,7 +37,10 @@ namespace GameMicroservice.Application.DTOs
         /// </summary>
         public Dictionary<string, List<string>> Zones { get; set; } = new();
 
-        public Phase CurrentPhase { get; set; } = Phase.Draw; // Current phase of the game
+        public Phase CurrentPhase { get; set; } = Phase.Draw;
+
+        public List<AvailableActionDto> AvailableActions { get; set; } = new();
+
 
     }
 }

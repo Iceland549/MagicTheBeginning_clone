@@ -32,14 +32,15 @@ namespace DeckMicroservice.Infrastructure.Repositories
         public async Task CreateAsync(CreateDeckRequest req)
         {
             if (req == null)
-            {
-                Console.WriteLine("Error: CreateAsync received null request.");
                 throw new ArgumentNullException(nameof(req));
-            }
 
-            Console.WriteLine($"Received CreateAsync request for ownerId: {req.OwnerId ?? "null"}, name: {req.Name ?? "unnamed"}");
+            if (string.IsNullOrWhiteSpace(req.OwnerId))
+                throw new ArgumentException("OwnerId is required", nameof(req.OwnerId));
+            if (string.IsNullOrWhiteSpace(req.Name))
+                throw new ArgumentException("Name is required", nameof(req.Name));
+
             if (!await ValidateAsync(req))
-                throw new InvalidOperationException("Deck validation failed. Check validation rules for details.");
+                throw new InvalidOperationException("Deck validation failed.");
 
             var deck = new Deck
             {
@@ -51,10 +52,10 @@ namespace DeckMicroservice.Infrastructure.Repositories
                     Quantity = c.Quantity
                 }).ToList() ?? new List<DeckCard>()
             };
-            Console.WriteLine($"Inserting deck with {deck.Cards.Count} cards");
+
             await _col.InsertOneAsync(deck);
-            Console.WriteLine($"Deck inserted for ownerId: {deck.OwnerId}, name: {deck.Name}");
         }
+
 
         public async Task<List<DeckDto>> GetByOwnerAsync(string ownerId)
         {
