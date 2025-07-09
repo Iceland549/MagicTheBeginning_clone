@@ -14,7 +14,7 @@ namespace GameMicroservice.Application.Interfaces
         /// <param name="playerOneId">ID of the first player.</param>
         /// <param name="playerTwoId">ID of the second player.</param>
         /// <returns>The created game session entity.</returns>
-        Task<GameSession> CreateAsync(string playerOneId, string playerTwoId, string deckId);
+        Task<GameSession> CreateAsync(string playerOneId, string playerTwoId, string deckIdP1, string deckIdP2);
 
         /// <summary>
         /// Retrieves a game session by its ID.

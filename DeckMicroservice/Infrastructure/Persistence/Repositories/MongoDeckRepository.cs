@@ -149,5 +149,10 @@ namespace DeckMicroservice.Infrastructure.Repositories
             Console.WriteLine("Deck validation successful");
             return true;
         }
+        public async Task<List<Deck>> GetAllDecksAsync()
+        {
+            return await _col.Find(_ => true).ToListAsync();
+        }
+
     }
 }

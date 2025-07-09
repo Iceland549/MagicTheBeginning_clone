@@ -11,7 +11,6 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
     /// </summary>
     public class PlayerState
     {
-        [BsonRepresentation(BsonType.ObjectId)]
         [BsonElement("playerId")]
         public string PlayerId { get; set; } = null!; // Reference to the user
 
@@ -19,10 +18,10 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
         public int LifeTotal { get; set; } = 20; // Remaining life points
 
         [BsonElement("manaPool")]
-        public Dictionary<Color, int> ManaPool { get; set; } = new()
+        public Dictionary<string, int> ManaPool { get; set; } = new()
         {
-            { Color.White, 0 }, { Color.Blue, 0 }, { Color.Black, 0 }, { Color.Red, 0 }, { Color.Green, 0 }
-        }; // Available mana by color
+            { "White", 0 }, { "Blue", 0 }, { "Black", 0 }, { "Red", 0 }, { "Green", 0 }
+        };
 
         [BsonElement("landsPlayedThisTurn")]
         public int LandsPlayedThisTurn { get; set; } // Number of lands played this turn

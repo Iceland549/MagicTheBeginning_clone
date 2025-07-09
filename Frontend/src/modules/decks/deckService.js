@@ -62,3 +62,7 @@ export const validateDeck = async (deck) => {
     throw new Error(error.response?.data?.Error || 'Failed to validate deck');
   }
 };
+
+export function getAllDecks() {
+  return api.get('/decks/all');
+}

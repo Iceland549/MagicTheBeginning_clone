@@ -28,16 +28,14 @@ namespace GameMicroservice.Infrastructure.Persistence
             _cardClient = cardClient;
         }
 
-        public async Task<GameSession> CreateAsync(string playerOneId, string playerTwoId, string deckId)
+        public async Task<GameSession> CreateAsync(string playerOneId, string playerTwoId, string deckIdP1, string deckIdP2)
         {
-            // Fetch the player's deck using the provided deckId
-            var p1Decks = await _deckClient.GetDecksByOwnerAsync(playerOneId);
-            var p1Deck = p1Decks.FirstOrDefault(d => d.Id == deckId)
-                         ?? throw new InvalidOperationException($"No deck found with ID {deckId} for player {playerOneId}");
+            var allDecks = await _deckClient.GetAllDecksAsync();
+            var p1Deck = allDecks.FirstOrDefault(d => d.Id == deckIdP1)
+                         ?? throw new InvalidOperationException($"No deck found with ID {deckIdP1}");
+            var p2Deck = allDecks.FirstOrDefault(d => d.Id == deckIdP2)
+                         ?? throw new InvalidOperationException($"No deck found with ID {deckIdP2}");
 
-            // For AI opponent, select a default deck or handle differently
-            var p2Decks = await _deckClient.GetDecksByOwnerAsync(playerTwoId);
-            var p2Deck = p2Decks.FirstOrDefault() ?? throw new InvalidOperationException($"No deck found for player {playerTwoId}");
 
             // Convert DeckDto.Cards to List<string> (cardName or cardId)
             var p1Library = p1Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardName, c.Quantity)).ToList();
@@ -49,49 +47,49 @@ namespace GameMicroservice.Infrastructure.Persistence
 
             var session = new GameSession
             {
-                PlayerOneId = p1,
-                PlayerTwoId = p2,
-                ActivePlayerId = p1,
+                PlayerOneId = playerOneId,
+                PlayerTwoId = playerTwoId,
+                ActivePlayerId = playerOneId,
                 CurrentPhase = Phase.Draw, // Initialize game phase
                 Zones = new Dictionary<string, List<CardInGame>>
                 {
-                    { $"{p1}_library", new List<CardInGame>() },
-                    { $"{p1}_hand", new List<CardInGame>() },
-                    { $"{p1}_battlefield", new List<CardInGame>() },
-                    { $"{p1}_graveyard", new List<CardInGame>() },
-                    { $"{p2}_library", new List<CardInGame>() },
-                    { $"{p2}_hand", new List<CardInGame>() },
-                    { $"{p2}_battlefield", new List<CardInGame>() },
-                    { $"{p2}_graveyard", new List<CardInGame>() }
+                    { $"{playerOneId}_library", new List<CardInGame>() },
+                    { $"{playerOneId}_hand", new List<CardInGame>() },
+                    { $"{playerOneId}_battlefield", new List<CardInGame>() },
+                    { $"{playerOneId}_graveyard", new List<CardInGame>() },
+                    { $"{playerTwoId}_library", new List<CardInGame>() },
+                    { $"{playerTwoId}_hand", new List<CardInGame>() },
+                    { $"{playerTwoId}_battlefield", new List<CardInGame>() },
+                    { $"{playerTwoId}_graveyard", new List<CardInGame>() }
                 },
                 Players = new List<PlayerState>
                 {
                     new PlayerState
                     {
-                        PlayerId = p1,
+                        PlayerId = playerOneId,
                         LifeTotal = 20,
-                        ManaPool = new Dictionary<GameMicroservice.Domain.Color, int>
+                        ManaPool = new Dictionary<string, int>
                         {
-                            { GameMicroservice.Domain.Color.White, 0 },
-                            { GameMicroservice.Domain.Color.Blue, 0 },
-                            { GameMicroservice.Domain.Color.Black, 0 },
-                            { GameMicroservice.Domain.Color.Red, 0 },
-                            { GameMicroservice.Domain.Color.Green, 0 }
+                            { "White", 0 },
+                            { "Blue", 0 },
+                            { "Black", 0 },
+                            { "Red", 0 },
+                            { "Green", 0 }
                         },
                         LandsPlayedThisTurn = 0,
                         HasDrawnThisTurn = false
                     },
                     new PlayerState
                     {
-                        PlayerId = p2,
+                        PlayerId = playerTwoId,
                         LifeTotal = 20,
-                        ManaPool = new Dictionary<GameMicroservice.Domain.Color, int>
+                        ManaPool = new Dictionary<string, int>
                         {
-                            { GameMicroservice.Domain.Color.White, 0 },
-                            { GameMicroservice.Domain.Color.Blue, 0 },
-                            { GameMicroservice.Domain.Color.Black, 0 },
-                            { GameMicroservice.Domain.Color.Red, 0 },
-                            { GameMicroservice.Domain.Color.Green, 0 }
+                            { "White", 0 },
+                            { "Blue", 0 },
+                            { "Black", 0 },
+                            { "Red", 0 },
+                            { "Green", 0 }
                         },
                         LandsPlayedThisTurn = 0,
                         HasDrawnThisTurn = false

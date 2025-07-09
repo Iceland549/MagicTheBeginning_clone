@@ -133,6 +133,8 @@ services:
       - Mongo__ConnectionString=mongodb://mongo:27017
       - Mongo__Database=magic-db
       - Mongo__GameCollection=games
+      - ServiceAuthToken=SuperSecreteTokenDoitFaireAuMoins32Chars! 
+
     depends_on:
       - mongo
     ports:
@@ -157,6 +159,8 @@ services:
       - Jwt__Issuer=MagicTheBeginning
       - Jwt__Audience=MagicClients
       - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
+      - ServiceAuthToken=SuperSecreteTokenDoitFaireAuMoins32Chars!   
+
     depends_on:
       auth:
         condition: service_healthy

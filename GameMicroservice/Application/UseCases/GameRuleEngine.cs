@@ -92,7 +92,7 @@ namespace GameMicroservice.Application.UseCases
         public GameSession OnLandfall(GameSession s, string playerId, string cardId)
         {
             var player = s.Players.First(p => p.PlayerId == playerId);
-            player.ManaPool[Color.Colorless] = player.ManaPool.GetValueOrDefault(Color.Colorless, 0) + 1;
+            player.ManaPool["Colorless"] = player.ManaPool.GetValueOrDefault("Colorless", 0) + 1;
             return s;
         }
 
@@ -299,12 +299,12 @@ namespace GameMicroservice.Application.UseCases
             await _gameSessionRepository.UpdateAsync(session);
         }
 
-        private bool CanPayManaCost(Dictionary<Color, int> manaPool, string manaCost)
+        private bool CanPayManaCost(Dictionary<string, int> manaPool, string manaCost)
         {
             if (string.IsNullOrEmpty(manaCost))
                 return true;
 
-            var requiredMana = new Dictionary<Color, int>();
+            var requiredMana = new Dictionary<string, int>();
             var genericMana = 0;
 
             foreach (var c in manaCost.Replace("{", "").Split('}'))
@@ -314,15 +314,15 @@ namespace GameMicroservice.Application.UseCases
                     genericMana += value;
                 else
                 {
-                    Color color;
+                    string color;
                     switch (c)
                     {
-                        case "W": color = Color.White; break;
-                        case "U": color = Color.Blue; break;
-                        case "B": color = Color.Black; break;
-                        case "R": color = Color.Red; break;
-                        case "G": color = Color.Green; break;
-                        case "C": color = Color.Colorless; break;
+                        case "W": color = "White"; break;
+                        case "U": color = "Blue"; break;
+                        case "B": color = "Black"; break;
+                        case "R": color = "Red"; break;
+                        case "G": color = "Green"; break;
+                        case "C": color = "Colorless"; break;
                         default: throw new InvalidOperationException($"Unknown mana color: {c}");
                     }
                     requiredMana[color] = requiredMana.GetValueOrDefault(color) + 1;
@@ -340,12 +340,13 @@ namespace GameMicroservice.Application.UseCases
             return totalMana - specificManaUsed >= genericMana;
         }
 
-        private void DeductManaCost(Dictionary<Color, int> manaPool, string manaCost)
+
+        private void DeductManaCost(Dictionary<string, int> manaPool, string manaCost)
         {
             if (string.IsNullOrEmpty(manaCost))
                 return;
 
-            var requiredMana = new Dictionary<Color, int>();
+            var requiredMana = new Dictionary<string, int>();
             var genericMana = 0;
 
             foreach (var c in manaCost.Replace("{", "").Split('}'))
@@ -355,15 +356,15 @@ namespace GameMicroservice.Application.UseCases
                     genericMana += value;
                 else
                 {
-                    Color color;
+                    string color;
                     switch (c)
                     {
-                        case "W": color = Color.White; break;
-                        case "U": color = Color.Blue; break;
-                        case "B": color = Color.Black; break;
-                        case "R": color = Color.Red; break;
-                        case "G": color = Color.Green; break;
-                        case "C": color = Color.Colorless; break;
+                        case "W": color = "White"; break;
+                        case "U": color = "Blue"; break;
+                        case "B": color = "Black"; break;
+                        case "R": color = "Red"; break;
+                        case "G": color = "Green"; break;
+                        case "C": color = "Colorless"; break;
                         default: throw new InvalidOperationException($"Unknown mana color: {c}");
                     }
                     requiredMana[color] = requiredMana.GetValueOrDefault(color) + 1;
@@ -380,6 +381,7 @@ namespace GameMicroservice.Application.UseCases
             var totalMana = manaPool.Values.Sum();
             if (totalMana < genericMana)
                 throw new InvalidOperationException("Insufficient generic mana");
+
             foreach (var color in manaPool.Keys.ToList())
             {
                 if (genericMana <= 0) break;
@@ -388,5 +390,6 @@ namespace GameMicroservice.Application.UseCases
                 genericMana -= deduct;
             }
         }
+
     }
 }

@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace DeckMicroservice.Presentation.Controllers
 {
-    //[ApiController]
+    [ApiController]
     [Route("api/decks")]
-    [Authorize]
+    //[Authorize]
     public class DecksController : ControllerBase
     {
         private readonly CreateDeckUseCase _create;
@@ -114,5 +114,12 @@ namespace DeckMicroservice.Presentation.Controllers
                 return StatusCode(500, new { Error = $"Internal server error: {ex.Message}" });
             }
         }
+        [HttpGet("all")]
+        public async Task<ActionResult<List<DeckDto>>> GetAllDecks()
+        {
+            var decks = await _getDecks.ExecuteAllAsync();
+            return Ok(decks);
+        }
+
     }
 }

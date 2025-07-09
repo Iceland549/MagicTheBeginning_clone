@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using GameMicroservice.Application.DTOs;
+using Ocelot.Requester;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -28,6 +30,17 @@ namespace GameMicroservice.Infrastructure
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _serviceToken);
 
             var response = await _client.SendAsync(request); response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<List<DeckDto>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? new List<DeckDto>();
+        }
+        public async Task<List<DeckDto>> GetAllDecksAsync()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, "/api/decks/all");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _serviceToken);
+
+            var response = await _client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<List<DeckDto>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                 ?? new List<DeckDto>();

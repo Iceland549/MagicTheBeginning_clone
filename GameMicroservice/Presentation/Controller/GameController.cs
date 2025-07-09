@@ -31,10 +31,10 @@ namespace GameMicroservice.Presentation.Controllers
         [HttpPost("start")]
         public async Task<ActionResult<GameSessionDto>> Start([FromBody] StartGameRequest req)
         {
-            if (req == null || string.IsNullOrEmpty(req.PlayerOneId) || string.IsNullOrEmpty(req.PlayerTwoId) || string.IsNullOrEmpty(req.DeckId))
+            if (req == null || string.IsNullOrEmpty(req.PlayerOneId) || string.IsNullOrEmpty(req.PlayerTwoId) || string.IsNullOrEmpty(req.DeckIdP1) || string.IsNullOrEmpty(req.DeckIdP2))
                 return BadRequest("Invalid start game request: Player IDs and Deck ID are required");
 
-            var game = await _start.ExecuteAsync(req.PlayerOneId, req.PlayerTwoId, req.DeckId);
+            var game = await _start.ExecuteAsync(req.PlayerOneId, req.PlayerTwoId, req.DeckIdP1, req.DeckIdP2);
             return Ok(game);
         }
 
