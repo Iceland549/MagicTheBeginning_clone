@@ -71,6 +71,5 @@ namespace GameMicroservice.Presentation.Controllers
             var game = await _state.ExecuteAsync(gameId);
             return Ok(game);
         }
-
     }
 }
