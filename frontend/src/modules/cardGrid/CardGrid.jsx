@@ -42,15 +42,15 @@ export function CardGrid({
         {cards.map(card => {
           const key = card.id;
           const quantity = quantities[key] || 1;
-          console.log(`Rendering card: ${card.name}, ID: ${card.id}, TypeLine: ${card.type_line || 'undefined'}`);
+          console.log(`Rendering card: ${card.name}, ID: ${card.id}, TypeLine: ${card.typeLine || 'undefined'}`);
           return (
             <div key={key} className="card-item">
-              {card.image_url && (
+              {card.imageUrl && (
                 <img
-                  src={card.image_url}
+                  src={card.imageUrl}
                   alt={card.name || card.cardName}
                   className="card-thumb"
-                  onError={() => console.error('Image failed to load:', card.image_url)}
+                  onError={() => console.error('Image failed to load:', card.imageUrl)}
                 />
               )}
               <div className="card-info">

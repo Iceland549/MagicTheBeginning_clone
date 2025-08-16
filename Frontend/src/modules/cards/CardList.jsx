@@ -52,12 +52,12 @@ export default function CardList() {
         {card && (
           <div className="card-result">
             <h3>{card.name}</h3>
-            {card.image_url && (
+            {card.imageUrl && (
               <img
-                src={card.image_url}
+                src={card.imageUrl}
                 alt={card.name}
                 width="200"
-                onError={(e) => console.error('Image failed to load:', card.image_url)}
+                onError={(e) => console.error('Image failed to load:', card.imageUrl)}
               />
             )}
             <div>
@@ -66,7 +66,7 @@ export default function CardList() {
                 value={quantity}
                 onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
               >
-                {Array.from({ length: card.type_line && card.type_line.toLowerCase().includes('land') ? 20 : 4 }, (_, i) => i + 1).map(n => (
+                {Array.from({ length: card.typeLine && card.typeLine.toLowerCase().includes('land') ? 20 : 4 }, (_, i) => i + 1).map(n => (
                   <option key={n} value={n}>{n}</option>
                 ))}
               </select>
