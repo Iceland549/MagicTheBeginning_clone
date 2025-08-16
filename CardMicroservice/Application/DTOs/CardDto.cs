@@ -190,7 +190,7 @@ namespace CardMicroservice.Application.DTOs
         [JsonPropertyName("story_spotlight")]
         public bool StorySpotlight { get; set; }
 
-        [JsonPropertyName("edhrec_rank")]
+        [JsonPropertyName("edhrecRank")]
         public int? EdhrecRank { get; set; }
 
         [JsonPropertyName("penny_rank")]
