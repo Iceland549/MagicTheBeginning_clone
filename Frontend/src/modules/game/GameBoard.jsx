@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { startGame, getGameState, playCard } from './gameService';
 import { getAllDecks } from '../decks/deckService';
+import { getAllCards } from '../cards/cardService'; // Ajout
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import './GameBoard.css';
-
 import PlayerZone from './PlayerZone';
 import GameActions from './GameActions';
 import Library from './Library';
@@ -16,6 +16,7 @@ export default function GameBoard() {
   const [deckP1, setDeckP1] = useState(null);
   const [deckP2, setDeckP2] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [cardDetails, setCardDetails] = useState({}); // Nouvel état pour les détails des cartes
   const navigate = useNavigate();
   const playerId = localStorage.getItem('userId');
 
@@ -24,9 +25,25 @@ export default function GameBoard() {
       navigate('/login');
       return;
     }
+    // Récupérer les decks
     getAllDecks()
       .then(response => setDecks(response.data || []))
       .catch(() => setDecks([]));
+
+    // Récupérer toutes les cartes pour les détails
+    getAllCards()
+      .then(response => {
+        console.log('Cards fetched in GameBoard:', JSON.stringify(response, null, 2));
+        const cardMap = response.reduce((map, card) => {
+          map[card.id] = card; // Mapper par ID pour un accès rapide
+          return map;
+        }, {});
+        setCardDetails(cardMap);
+      })
+      .catch(error => {
+        console.error('Erreur lors de getAllCards:', error);
+        setCardDetails({});
+      });
   }, [playerId, navigate]);
 
   const refresh = async () => {
@@ -34,6 +51,7 @@ export default function GameBoard() {
     setLoading(true);
     try {
       const response = await getGameState(gameId);
+      console.log('Game state:', JSON.stringify(response, null, 2));
       setState(response);
     } catch (error) {
       alert('Erreur lors du rafraîchissement de l’état du jeu');
@@ -64,10 +82,10 @@ export default function GameBoard() {
   };
 
   const onPlay = async (cardId, actionType = 'PlayCard') => {
-    if (!gameId) return;
+    if (!gameId || !playerId) return;
     setLoading(true);
     try {
-      await playCard(gameId, { cardId, type: actionType });
+      await playCard(gameId, { playerId, cardId, type: actionType });
       await refresh();
     } catch (error) {
       alert('Erreur lors de l’action : ' + (error.message || ''));
@@ -76,17 +94,13 @@ export default function GameBoard() {
   };
 
   useEffect(() => {
-    if (
-      state &&
-      state.activePlayerId === state.playerTwoId
-    ) {
+    if (state && state.activePlayerId === state.playerTwoId) {
       setLoading(true);
       api.post(`/games/${gameId}/ai-turn`)
         .then(() => refresh())
         .catch(() => setLoading(false));
     }
-    // eslint-disable-next-line
-  }, [state?.activePlayerId]);
+  }, [state?.activePlayerId, gameId]);
 
   const availableDecks = decks.filter(
     d => (!deckP1 || d.id !== deckP1.id) && (!deckP2 || d.id !== deckP2.id)
@@ -96,7 +110,6 @@ export default function GameBoard() {
     if (!state || state.activePlayerId !== playerId) return [];
 
     const hand = state.zones[`${playerId}_hand`] || [];
-
     const landCards = hand.filter(c => c.typeLine?.includes('Land'));
     const spellCards = hand.filter(c => !c.typeLine?.includes('Land'));
 
@@ -135,6 +148,17 @@ export default function GameBoard() {
 
     return actions;
   };
+
+  // Enrichir les zones avec les détails des cartes
+  const enrichedZones = state
+    ? Object.keys(state.zones).reduce((acc, zoneKey) => {
+        acc[zoneKey] = state.zones[zoneKey].map(card => ({
+          ...card,
+          imageUrl: cardDetails[card.cardId]?.imageUrl || card.imageUrl || 'https://via.placeholder.com/100'
+        }));
+        return acc;
+      }, {})
+    : {};
 
   const handleAction = async (action) => {
     await onPlay(action.cardId || null, action.type);
@@ -206,17 +230,17 @@ export default function GameBoard() {
             <div className="magic-board">
               <PlayerZone
                 playerId={state.playerTwoId}
-                zones={state.zones}
+                zones={enrichedZones} // Utiliser les zones enrichies
                 isPlayable={false}
               />
               <div className="center-zone">
-                <Library count={state.zones[`${state.playerTwoId}_library`]?.length || 0} />
+                <Library count={enrichedZones[`${state.playerTwoId}_library`]?.length || 0} />
                 <div className="vs-label">VS</div>
-                <Library count={state.zones[`${playerId}_library`]?.length || 0} />
+                <Library count={enrichedZones[`${playerId}_library`]?.length || 0} />
               </div>
               <PlayerZone
                 playerId={playerId}
-                zones={state.zones}
+                zones={enrichedZones} // Utiliser les zones enrichies
                 onPlayCard={onPlay}
                 isPlayable={state.activePlayerId === playerId}
               />
