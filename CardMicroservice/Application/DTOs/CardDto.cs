@@ -11,13 +11,13 @@ namespace CardMicroservice.Application.DTOs
         [JsonPropertyName("name")]
         public string Name { get; set; } = null!;
 
-        [JsonPropertyName("mana_cost")]
+        [JsonPropertyName("manaCost")]
         public string ManaCost { get; set; } = null!;
 
-        [JsonPropertyName("type_line")]
+        [JsonPropertyName("typeLine")]
         public string TypeLine { get; set; } = null!;
 
-        [JsonPropertyName("oracle_text")]
+        [JsonPropertyName("oracleText")]
         public string OracleText { get; set; } = null!;
 
         [JsonPropertyName("power")]
@@ -30,47 +30,47 @@ namespace CardMicroservice.Application.DTOs
         [JsonPropertyName("abilities")]
         public List<string> Abilities { get; set; } = new(); // Rempli via oracle_text
 
-        [JsonPropertyName("image_url")]
+        [JsonPropertyName("imageUrl")]
         public string? ImageUrl { get; set; } // Mappé depuis image_uris.normal
 
         // Nouveaux champs de Scryfall
         [JsonPropertyName("object")]
         public string Object { get; set; } = null!;
 
-        [JsonPropertyName("oracle_id")]
+        [JsonPropertyName("oracleId")]
         public string OracleId { get; set; } = null!;
 
-        [JsonPropertyName("multiverse_ids")]
+        [JsonPropertyName("multiverseIds")]
         public List<int> MultiverseIds { get; set; } = new();
 
-        [JsonPropertyName("mtgo_id")]
+        [JsonPropertyName("mtgoId")]
         public int? MtgoId { get; set; }
 
-        [JsonPropertyName("mtgo_foil_id")]
+        [JsonPropertyName("mtgoFoilId")]
         public int? MtgoFoilId { get; set; }
 
-        [JsonPropertyName("tcgplayer_id")]
+        [JsonPropertyName("tcgplayerId")]
         public int? TcgplayerId { get; set; }
 
-        [JsonPropertyName("cardmarket_id")]
+        [JsonPropertyName("cardmarketId")]
         public int? CardmarketId { get; set; }
 
         [JsonPropertyName("lang")]
         public string Language { get; set; } = null!;
 
-        [JsonPropertyName("released_at")]
+        [JsonPropertyName("releasedAt")]
         public string ReleasedAt { get; set; } = null!;
 
         [JsonPropertyName("uri")]
         public string Uri { get; set; } = null!;
 
-        [JsonPropertyName("scryfall_uri")]
+        [JsonPropertyName("scryfallUri")]
         public string ScryfallUri { get; set; } = null!;
 
         [JsonPropertyName("layout")]
         public string Layout { get; set; } = null!;
 
-        [JsonPropertyName("highres_image")]
+        [JsonPropertyName("highresImage")]
         public bool HighresImage { get; set; }
 
         [JsonPropertyName("image_uris")]
@@ -118,34 +118,34 @@ namespace CardMicroservice.Application.DTOs
         [JsonPropertyName("variation")]
         public bool Variation { get; set; }
 
-        [JsonPropertyName("set_id")]
+        [JsonPropertyName("setId")]
         public string SetId { get; set; } = null!;
 
         [JsonPropertyName("set")]
         public string Set { get; set; } = null!;
 
-        [JsonPropertyName("set_name")]
+        [JsonPropertyName("setName")]
         public string SetName { get; set; } = null!;
 
-        [JsonPropertyName("set_type")]
+        [JsonPropertyName("setType")]
         public string SetType { get; set; } = null!;
 
-        [JsonPropertyName("set_uri")]
+        [JsonPropertyName("setUri")]
         public string SetUri { get; set; } = null!;
 
-        [JsonPropertyName("set_search_uri")]
+        [JsonPropertyName("setSearchUri")]
         public string SetSearchUri { get; set; } = null!;
 
-        [JsonPropertyName("scryfall_set_uri")]
+        [JsonPropertyName("scryfallSetUri")]
         public string ScryfallSetUri { get; set; } = null!;
 
-        [JsonPropertyName("rulings_uri")]
+        [JsonPropertyName("rulingsUri")]
         public string RulingsUri { get; set; } = null!;
 
-        [JsonPropertyName("prints_search_uri")]
+        [JsonPropertyName("printsSearchUri")]
         public string PrintsSearchUri { get; set; } = null!;
 
-        [JsonPropertyName("collector_number")]
+        [JsonPropertyName("collectorNumber")]
         public string CollectorNumber { get; set; } = null!;
 
         [JsonPropertyName("digital")]
@@ -154,31 +154,31 @@ namespace CardMicroservice.Application.DTOs
         [JsonPropertyName("rarity")]
         public string Rarity { get; set; } = null!;
 
-        [JsonPropertyName("flavor_text")]
+        [JsonPropertyName("flavorText")]
         public string? FlavorText { get; set; }
 
-        [JsonPropertyName("card_back_id")]
+        [JsonPropertyName("cardBackId")]
         public string? CardBackId { get; set; }
 
         [JsonPropertyName("artist")]
         public string? Artist { get; set; }
 
-        [JsonPropertyName("artist_ids")]
+        [JsonPropertyName("artistIds")]
         public List<string> ArtistIds { get; set; } = new();
 
-        [JsonPropertyName("illustration_id")]
+        [JsonPropertyName("illustrationId")]
         public string? IllustrationId { get; set; }
 
-        [JsonPropertyName("border_color")]
+        [JsonPropertyName("borderColor")]
         public string BorderColor { get; set; } = null!;
 
         [JsonPropertyName("frame")]
         public string Frame { get; set; } = null!;
 
-        [JsonPropertyName("security_stamp")]
+        [JsonPropertyName("securityStamp")]
         public string? SecurityStamp { get; set; }
 
-        [JsonPropertyName("full_art")]
+        [JsonPropertyName("fullArt")]
         public bool FullArt { get; set; }
 
         [JsonPropertyName("textless")]
@@ -187,22 +187,22 @@ namespace CardMicroservice.Application.DTOs
         [JsonPropertyName("booster")]
         public bool Booster { get; set; }
 
-        [JsonPropertyName("story_spotlight")]
+        [JsonPropertyName("storySpotlight")]
         public bool StorySpotlight { get; set; }
 
         [JsonPropertyName("edhrecRank")]
         public int? EdhrecRank { get; set; }
 
-        [JsonPropertyName("penny_rank")]
+        [JsonPropertyName("pennyRank")]
         public int? PennyRank { get; set; }
 
         [JsonPropertyName("prices")]
         public Dictionary<string, string?> Prices { get; set; } = new();
 
-        [JsonPropertyName("related_uris")]
+        [JsonPropertyName("relatedUris")]
         public Dictionary<string, string> RelatedUris { get; set; } = new();
 
-        [JsonPropertyName("purchase_uris")]
+        [JsonPropertyName("purchaseUris")]
         public Dictionary<string, string> PurchaseUris { get; set; } = new();
     }
 }
