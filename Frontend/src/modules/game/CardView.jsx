@@ -1,20 +1,20 @@
 import React from 'react';
 
 export default function CardView({ card, onPlay, disabled }) {
-    console.log("CardView render:", card);
+   console.log("CardView render:", typeof card, card);
 
   if (!card) return null;
 
   return (
     <div className="card-view">
-      <pre>{JSON.stringify(card, null, 2)}</pre>
+      {/* <pre>{JSON.stringify(card, null, 2)}</pre> */}
       <h4>{card.name || card.cardId}</h4>
       <p>{card.typeLine}</p>
 
       {card.manaCost && <p>Coût : {card.manaCost}</p>}
 
       {card.imageUrl && (
-        <img src={card.imageUrl} alt={card.name} style={{ maxWidth: '100px' }} />
+        <img src={card.imageUrl || 'https://via.placeholder.com/100'} alt={card.name} style={{ maxWidth: '100px' }} />
       )}
 
       {typeof onPlay === 'function' && (
