@@ -88,55 +88,36 @@ namespace GameMicroservice.Infrastructure.Persistence
             session.Zones[$"{playerOneId}_library"] = p1Library.Select(name => new CardInGame(name)).ToList();
             session.Zones[$"{playerTwoId}_library"] = p2Library.Select(name => new CardInGame(name)).ToList();
 
-            // Pioche initiale : 5 cartes pour chaque joueur
-            for (int i = 0; i < 5; i++)
+            // Pioche initiale : 7 cartes pour chaque joueur
+            for (int i = 0; i < 7; i++)
             {
-                if (session.Zones[$"{playerOneId}_library"].Count > 0)
+                foreach (var playerId in new[] { playerOneId, playerTwoId })
                 {
-                    var card = session.Zones[$"{playerOneId}_library"][0];
-                    var details = await _cardClient.GetCardByIdAsync(card.CardId);
-                    if (details is not null)
+                    var library = session.Zones[$"{playerId}_library"];
+                    if (library.Count > 0)
                     {
-                        session.Zones[$"{playerOneId}_hand"].Add(new CardInGame
+                        var card = library[0];
+                        var details = await _cardClient.GetCardByIdAsync(card.CardId);
+                        if (details != null)
                         {
-                            CardId = details.Id,
-                            Name = details.Name,
-                            TypeLine = details.TypeLine,
-                            ImageUrl = details.ImageUrl,
-                            ManaCost = details.ManaCost,
-                            Power = details.Power,
-                            Toughness = details.Toughness,
-                            IsTapped = false,
-                            HasSummoningSickness = true
-                        });
+                            session.Zones[$"{playerId}_hand"].Add(new CardInGame
+                            {
+                                CardId = details.Id,
+                                Name = details.Name,
+                                TypeLine = details.TypeLine,
+                                ImageUrl = details.ImageUrl,
+                                ManaCost = details.ManaCost,
+                                Power = details.Power,
+                                Toughness = details.Toughness,
+                                IsTapped = false,
+                                HasSummoningSickness = true
+                            });
+                        }
+                        library.RemoveAt(0);
                     }
-
-                    session.Zones[$"{playerOneId}_library"].RemoveAt(0);
-                }
-
-                if (session.Zones[$"{playerTwoId}_library"].Count > 0)
-                {
-                    var card = session.Zones[$"{playerTwoId}_library"][0];
-                    var details = await _cardClient.GetCardByIdAsync(card.CardId);
-                    if (details is not null)
-                    {
-                        session.Zones[$"{playerTwoId}_hand"].Add(new CardInGame
-                        {
-                            CardId = details.Id,
-                            Name = details.Name,
-                            TypeLine = details.TypeLine,
-                            ImageUrl = details.ImageUrl,
-                            ManaCost = details.ManaCost,
-                            Power = details.Power,
-                            Toughness = details.Toughness,
-                            IsTapped = false,
-                            HasSummoningSickness = true
-                        });
-                    }
-
-                    session.Zones[$"{playerTwoId}_library"].RemoveAt(0);
                 }
             }
+
 
             await _col.InsertOneAsync(session);
             return session;
@@ -166,7 +147,7 @@ namespace GameMicroservice.Infrastructure.Persistence
             // Ajoute au champ de bataille
             session.Zones[handKey].Remove(cardInHand);
             var bfKey = $"{session.ActivePlayerId}_battlefield";
-            session.Zones[bfKey].Add(new CardInGame(cardName));
+            session.Zones[bfKey].Add(cardInHand);
 
             // Passe au joueur suivant
             session.ActivePlayerId = session.ActivePlayerId == session.PlayerOneId
