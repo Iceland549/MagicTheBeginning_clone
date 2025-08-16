@@ -1,5 +1,4 @@
-﻿
-using GameMicroservice.Domain;
+﻿using GameMicroservice.Domain;
 
 namespace GameMicroservice.Application.DTOs
 {
@@ -35,7 +34,7 @@ namespace GameMicroservice.Application.DTOs
         /// <summary>
         /// Game zones: "library", "hand", "battlefield", "graveyard".
         /// </summary>
-        public Dictionary<string, List<string>> Zones { get; set; } = new();
+        public Dictionary<string, List<CardInGameDto>> Zones { get; set; } = new();
 
         public Phase CurrentPhase { get; set; } = Phase.Draw;
 
