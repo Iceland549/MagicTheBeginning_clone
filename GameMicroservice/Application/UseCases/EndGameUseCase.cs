@@ -21,8 +21,6 @@ namespace GameMicroservice.Application.UseCases
             if (session == null)
                 return new ActionResultDto { Success = false, Message = "Session introuvable" };
 
-            // Ajoute un flag ou retire la session, selon ta logique
-            // ...
 
             return new ActionResultDto
             {
