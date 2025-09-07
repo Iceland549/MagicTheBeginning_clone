@@ -393,14 +393,29 @@ namespace GameMicroservice.Application.UseCases
         }
         public bool IsBlockPhase(GameSession session, string playerId)
         {
-            // Implémentation temporaire
-            return false;
+            return session.CurrentPhase == Phase.Combat && session.ActivePlayerId != playerId;
         }
 
         public async Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
         {
-            // Implémentation temporaire
-            await Task.CompletedTask;
+            if (!IsBlockPhase(session, playerId))
+                throw new InvalidOperationException("Ce n’est pas la phase de blocage.");
+
+            var battlefieldKey = $"{playerId}_battlefield";
+
+            foreach (var blocker in blockers.Values)
+            {
+                var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == blocker);
+                if (blockerCard == null)
+                    throw new InvalidOperationException($"Le bloqueur {blocker} n’est pas sur le champ de bataille.");
+                if (blockerCard.IsTapped)
+                    throw new InvalidOperationException($"Le bloqueur {blocker} est engagé.");
+
+                // Vérifie que c’est bien une créature
+                var blockerDetails = await _cardClient.GetCardByIdAsync(blocker);
+                if (blockerDetails?.TypeLine == null || !blockerDetails.TypeLine.Contains("Creature"))
+                    throw new InvalidOperationException($"Le bloqueur {blocker} n’est pas une créature.");
+            }
         }
 
         public Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
@@ -409,18 +424,67 @@ namespace GameMicroservice.Application.UseCases
         }
 
 
-        public GameSession DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard)
+        public async Task<GameSession> DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard, Dictionary<string, string> blockers)
         {
-            // Implémentation temporaire
+            var opponentId = session.PlayerOneId == playerId ? session.PlayerTwoId : session.PlayerOneId;
+
+            foreach (var kvp in blockers)
+            {
+                var attackerId = kvp.Key;
+                var blockerId = kvp.Value;
+
+                var attacker = session.Zones[$"{opponentId}_battlefield"].FirstOrDefault(c => c.CardId == attackerId);
+                var blocker = session.Zones[$"{playerId}_battlefield"].FirstOrDefault(c => c.CardId == blockerId);
+
+                if (attacker == null || blocker == null) continue;
+
+                var attackerDetails = await _cardClient.GetCardByIdAsync(attackerId) ?? throw new InvalidOperationException("Attaquant introuvable");
+                var blockerDetails = await _cardClient.GetCardByIdAsync(blockerId) ?? throw new InvalidOperationException("Bloqueur introuvable");
+
+                // Échanges de dégâts
+                if ((attackerDetails.Power ?? 0) >= (blockerDetails.Toughness ?? int.MaxValue))
+                {
+                    session.Zones[$"{playerId}_battlefield"].Remove(blocker);
+                    session.Zones[$"{playerId}_graveyard"].Add(blocker);
+                }
+                if ((blockerDetails.Power ?? 0) >= (attackerDetails.Toughness ?? int.MaxValue))
+                {
+                    session.Zones[$"{opponentId}_battlefield"].Remove(attacker);
+                    session.Zones[$"{opponentId}_graveyard"].Add(attacker);
+                }
+            }
             return session;
         }
 
         public EndGameDto? CheckEndGame(GameSession session)
         {
-            // Implémentation temporaire
+            var loser = session.Players.FirstOrDefault(p => p.LifeTotal <= 0);
+            if (loser != null)
+            {
+                var winner = session.Players.First(p => p.PlayerId != loser.PlayerId);
+                return new EndGameDto
+                {
+                    WinnerId = winner.PlayerId,
+                    Reason = $"Le joueur {loser.PlayerId} a 0 PV."
+                };
+            }
+
+            // Défaite par bibliothèque vide -> pioche impossible
+            foreach (var player in session.Players)
+            {
+                var libraryKey = $"{player.PlayerId}_library";
+                if (session.Zones[libraryKey].Count == 0 && !player.HasDrawnThisTurn)
+                {
+                    var winner = session.Players.First(p => p.PlayerId != player.PlayerId);
+                    return new EndGameDto
+                    {
+                        WinnerId = winner.PlayerId,
+                        Reason = $"Le joueur {player.PlayerId} n’a plus de cartes à piocher."
+                    };
+                }
+            }
+
             return null;
         }
-
-
     }
 }
