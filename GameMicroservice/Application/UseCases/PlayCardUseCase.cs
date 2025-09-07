@@ -97,7 +97,7 @@ namespace GameMicroservice.Application.UseCases
                     case ActionType.Discard:
                         if (action.CardsToDiscard == null || !action.CardsToDiscard.Any())
                             return new ActionResultDto { Success = false, Message = "Aucune carte à défausser" };
-                        sessionEntity = _engine.DiscardCards(sessionEntity, playerId, action.CardsToDiscard);
+                        sessionEntity = await _engine.DiscardCards(sessionEntity, playerId, action.CardsToDiscard, new Dictionary<string, string>());
                         break;
 
                     case ActionType.PreEnd:
@@ -113,7 +113,6 @@ namespace GameMicroservice.Application.UseCases
                         break;
 
                     case ActionType.EndGame:
-                        // Optionnel : gestion manuelle de la fin de partie
                         break;
 
                     default:
@@ -127,6 +126,7 @@ namespace GameMicroservice.Application.UseCases
                 return new ActionResultDto
                 {
                     Success = true,
+                    Message = "Carte jouée",
                     GameState = _mapper.Map<GameSessionDto>(sessionEntity),
                     EndGame = endGame
                 };
