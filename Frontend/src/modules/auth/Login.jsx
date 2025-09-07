@@ -28,6 +28,13 @@ export default function Login() {
         <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
         <input type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Mot de passe" />
         <button className="btn" onClick={handle}>Se connecter</button>
+
+        <p style={{ marginTop: '1rem' }}>
+          Pas encore de compte ?{' '}
+          <a href="/register" style={{ color: '#007bff', textDecoration: 'underline' }}>
+            Créer un compte
+          </a>
+        </p>
       </div>
     </div>
   );
