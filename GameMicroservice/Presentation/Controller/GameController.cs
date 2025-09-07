@@ -38,25 +38,6 @@ namespace GameMicroservice.Presentation.Controllers
             return Ok(game);
         }
 
-        //[HttpPost("{gameId}/action")]
-        //public async Task<ActionResult<GameSessionDto>> PlayAction(
-        //    string gameId,
-        //    [FromBody] PlayerActionDto action)
-        //{
-        //    if (string.IsNullOrEmpty(gameId))
-        //        return BadRequest("Game ID is required");
-        //    if (action == null)
-        //        return BadRequest("Action is required");
-        //    if (User.Identity?.Name == null)
-        //        return Unauthorized("User not authenticated");
-
-        //    var updated = await _play.ExecuteAsync(gameId, User.Identity.Name, action);
-        //    if (updated == null)
-        //        return NotFound($"Game session {gameId} not found");
-
-        //    return Ok(updated);
-        //}
-
         [HttpPost("{gameId}/ai-turn")]
         public async Task<ActionResult<GameSessionDto>> AITurn(string gameId)
         {
