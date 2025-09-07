@@ -20,6 +20,7 @@ namespace AuthMicroservice.Presentation.Controllers
         }
 
         [HttpPost("register")]
+        [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterRequest req)
         {
             // Création d'un nouvel utilisateur avec rôle Player
