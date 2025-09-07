@@ -33,7 +33,7 @@ namespace GameMicroservice.Application.Interfaces
         bool IsBlockPhase(GameSession session, string playerId);
         Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers);
         Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers);
-        GameSession DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard);
+        Task<GameSession> DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard, Dictionary<string, string> blockers);
         EndGameDto? CheckEndGame(GameSession session);
 
     }
