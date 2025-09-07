@@ -27,6 +27,19 @@
     },
 
     {
+      "DownstreamPathTemplate": "/api/account/register",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "auth",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/account/{everything}",
+      "UpstreamHttpMethod": [ "POST" ]
+    },
+
+    {
       "DownstreamPathTemplate": "/api/account/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -36,7 +49,7 @@
         }
       ],
       "UpstreamPathTemplate": "/api/account/{everything}",
-      "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
+      "UpstreamHttpMethod": [ "GET", "PUT", "DELETE" ],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
