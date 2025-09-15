@@ -22,21 +22,29 @@ namespace AuthMicroservice.Infrastructure.Persistence.Entities
         public string Email { get; set; } = null!;
 
         /// <summary>
-        [Required]
-        /// Hashed password stored securely.
+        /// Hashed password for HMACSHA512 (used when HashVersion == 1).
         /// </summary>
-        public byte[] PasswordHash { get; set; } = null!;
+        public byte[]? PasswordHash { get; set; } // Nullable pour BCrypt
 
         /// <summary>
-        [Required]
-        /// Salt used when hashing the password.
+        /// Salt used for HMACSHA512 (used when HashVersion == 1).
         /// </summary>
-        public byte[] PasswordSalt { get; set; } = null!;
+        public byte[]? PasswordSalt { get; set; } // Nullable pour BCrypt
+
+        /// <summary>
+        /// Hashed password for BCrypt (used when HashVersion == 2).
+        /// </summary>
+        public string? BCryptPasswordHash { get; set; } // Pour BCrypt
 
         /// <summary>
         /// Whether the email address has been confirmed.
         /// </summary>
         public bool EmailConfirmed { get; set; } = false;
+
+        /// <summary>
+        /// Tracks hashing algorithm (1 = HMACSHA512, 2 = BCrypt).
+        /// </summary>
+        public int HashVersion { get; set; } = 1; // 1 = HMACSHA512 (default pour existing)
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;  // Audit
 
@@ -48,6 +56,5 @@ namespace AuthMicroservice.Infrastructure.Persistence.Entities
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
         public ICollection<EmailToken> EmailTokens { get; set; } = new List<EmailToken>();
-
     }
 }
