@@ -85,7 +85,7 @@ export default function GameBoard() {
     if (!gameId || !playerId) return;
     setLoading(true);
     try {
-      await playCard(gameId, { playerId, cardId, type: actionType });
+      await playCard(gameId, { playerId, cardId, action: actionType });
       await refresh();
     } catch (error) {
       alert('Erreur lors de l’action : ' + (error.message || ''));
