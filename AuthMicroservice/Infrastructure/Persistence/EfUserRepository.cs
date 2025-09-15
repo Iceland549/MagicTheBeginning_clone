@@ -1,12 +1,18 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using AuthMicroservice.Application.Interfaces;
 using AuthMicroservice.Infrastructure.Persistence.Entities;
+using System.Security.Cryptography;
+using System.Text;
+using BCrypt.Net;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace AuthMicroservice.Infrastructure.Persistence
 {
     public class EfUserRepository : IUserRepository
     {
         private readonly AuthDbContext _ctx;
+
         public EfUserRepository(AuthDbContext ctx) => _ctx = ctx;
 
         public async Task<User?> GetByEmailAsync(string email) =>
@@ -14,11 +20,11 @@ namespace AuthMicroservice.Infrastructure.Persistence
 
         public async Task CreateUserAsync(User user, string password)
         {
-            // Génère salt/hash
-            using var hmac = new System.Security.Cryptography.HMACSHA512();
-            user.PasswordSalt = hmac.Key;
-            user.PasswordHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
-
+            // Utilise BCrypt pour hacher le mot de passe
+            user.BCryptPasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+            user.HashVersion = 2; // 2 = BCrypt
+            user.PasswordHash = null; // Pas besoin pour BCrypt
+            user.PasswordSalt = null; // Pas besoin pour BCrypt
             _ctx.Users.Add(user);
             await _ctx.SaveChangesAsync();
         }
@@ -28,9 +34,31 @@ namespace AuthMicroservice.Infrastructure.Persistence
             var user = await GetByEmailAsync(email);
             if (user == null) return false;
 
-            using var hmac = new System.Security.Cryptography.HMACSHA512(user.PasswordSalt);
-            var computed = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
-            return computed.SequenceEqual(user.PasswordHash);
+            bool isValid;
+            if (user.HashVersion == 1) // Ancien format (HMACSHA512)
+            {
+                if (user.PasswordSalt == null || user.PasswordHash == null) return false; // Vérification null
+                using var hmac = new HMACSHA512(user.PasswordSalt);
+                var computed = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+                isValid = Enumerable.SequenceEqual(computed, user.PasswordHash);
+
+                // Si valide, migre vers BCrypt
+                if (isValid)
+                {
+                    user.BCryptPasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+                    user.HashVersion = 2;
+                    user.PasswordHash = null; // Efface ancien hash
+                    user.PasswordSalt = null; // Efface ancien salt
+                    await _ctx.SaveChangesAsync();
+                }
+            }
+            else // BCrypt (HashVersion == 2)
+            {
+                if (user.BCryptPasswordHash == null) return false; // Vérification null
+                isValid = BCrypt.Net.BCrypt.Verify(password, user.BCryptPasswordHash);
+            }
+
+            return isValid;
         }
 
         public async Task AddRoleAsync(string userId, string role)
