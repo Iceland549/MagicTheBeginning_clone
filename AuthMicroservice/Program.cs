@@ -64,7 +64,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Migration and Seed Admin with retry
+// Migration and Seed (Admin + ServiceClients) with retry
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -78,11 +78,18 @@ using (var scope = app.Services.CreateScope())
         {
             var context = services.GetRequiredService<AuthDbContext>();
             await context.Database.MigrateAsync();
+
+            // Seed Admin
             var seeder = services.GetRequiredService<SeedAdminUseCase>();
             await seeder.ExecuteAsync(
                 builder.Configuration["Admin:Email"]!,
                 builder.Configuration["Admin:Password"]!
             );
+
+            // Seed Service Clients
+            var seedClients = services.GetRequiredService<SeedServiceClientsUseCase>();
+            await seedClients.ExecuteAsync(); 
+            
             break;
         }
         catch (Exception ex)
