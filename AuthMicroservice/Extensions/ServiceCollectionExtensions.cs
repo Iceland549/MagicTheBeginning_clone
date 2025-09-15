@@ -29,6 +29,7 @@ namespace AuthMicroservice.Extensions
             services.AddScoped<IRoleRepository, EfRoleRepository>();
             services.AddScoped<IEmailTokenRepository, EfEmailTokenRepository>();
             services.AddScoped<IRefreshTokenRepository, EfRefreshTokenRepository>();
+            services.AddScoped<IServiceClientRepository, EfServiceClientRepository>();
 
             // Security services
             services.AddScoped<IJwtService, JwtTokenGenerator>();  // Pure JWT gen/validation
@@ -41,11 +42,13 @@ namespace AuthMicroservice.Extensions
             services.AddScoped<LogoutUseCase>();
             services.AddScoped<RefreshTokenUseCase>();
             services.AddScoped<SeedAdminUseCase>();
+            //services.AddScoped<SeedServiceClientsUseCase>();
             services.AddScoped<GetProfileUseCase>();
             services.AddScoped<GenerateEmailConfirmationUseCase>();
             services.AddScoped<ConfirmEmailUseCase>();
             services.AddScoped<GenerateResetPasswordUseCase>();
             services.AddScoped<ResetPasswordUseCase>();
+            //services.AddScoped<GenerateServiceTokenUseCase>();
 
             // AutoMapper
             services.AddAutoMapper(typeof(AutoMapperProfile));
