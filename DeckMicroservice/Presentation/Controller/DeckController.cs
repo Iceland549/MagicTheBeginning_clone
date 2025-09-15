@@ -10,7 +10,7 @@ namespace DeckMicroservice.Presentation.Controllers
 {
     [ApiController]
     [Route("api/decks")]
-    //[Authorize]
+    [Authorize]
     public class DecksController : ControllerBase
     {
         private readonly CreateDeckUseCase _create;
@@ -26,7 +26,6 @@ namespace DeckMicroservice.Presentation.Controllers
             _validate = validate;
             _getDecks = getDecks;
         }
-
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateDeckRequest req)
         {
@@ -59,7 +58,6 @@ namespace DeckMicroservice.Presentation.Controllers
                 return StatusCode(500, new { Error = $"Internal server error: {ex.Message}" });
             }
         }
-
         [HttpGet("{ownerId}")]
         public async Task<IActionResult> GetByOwner(string ownerId)
         {
@@ -86,7 +84,6 @@ namespace DeckMicroservice.Presentation.Controllers
                 return StatusCode(500, new { Error = $"Internal server error: {ex.Message}" });
             }
         }
-
         [HttpPost("validate")]
         public async Task<IActionResult> Validate([FromBody] CreateDeckRequest req)
         {

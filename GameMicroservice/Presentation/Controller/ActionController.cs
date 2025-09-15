@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using GameMicroservice.Application.DTOs;
+﻿using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.UseCases;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 //using GameMicroservice.Domain;
 using System.Threading.Tasks;
 
@@ -35,7 +36,7 @@ namespace GameMicroservice.Presentation.Controllers
             _discard = discard;
             _endGame = endGame;
         }
-
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> PlayAction(
             [FromRoute] string gameId,

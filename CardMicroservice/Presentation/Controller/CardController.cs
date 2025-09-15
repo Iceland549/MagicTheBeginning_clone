@@ -1,11 +1,13 @@
 ﻿using CardMicroservice.Application.DTOs;
 using CardMicroservice.Application.UseCases;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CardMicroservice.Presentation.Controllers
 {
     [ApiController]
     [Route("api/cards")]
+    [Authorize]
     public class CardsController : ControllerBase
     {
         private readonly GetAllCardsUseCase _getAll;
@@ -21,14 +23,12 @@ namespace CardMicroservice.Presentation.Controllers
             _getByName = getByName;
             _import = import;
         }
-
         [HttpGet]
         public async Task<IEnumerable<CardDto>> GetAll()
         {
             // Retrieve all stored cards
             return await _getAll.ExecuteAsync();
         }
-
         [HttpGet("{name}")]
         public async Task<IActionResult> GetByName(string name)
         {
@@ -36,7 +36,6 @@ namespace CardMicroservice.Presentation.Controllers
             var card = await _getByName.ExecuteAsync(name);
             return card == null ? NotFound() : Ok(card);
         }
-
         [HttpPost("import/{name}")]
         public async Task<ActionResult<CardDto>> Import(string name)
         {

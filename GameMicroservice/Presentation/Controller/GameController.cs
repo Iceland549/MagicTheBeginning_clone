@@ -8,7 +8,7 @@ namespace GameMicroservice.Presentation.Controllers
 {
     [ApiController]
     [Route("api/games")]
-    //[Authorize]
+    [Authorize]
     public class GameController : ControllerBase
     {
         private readonly StartGameUseCase _start;
