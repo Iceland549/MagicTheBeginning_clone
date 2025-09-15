@@ -14,6 +14,7 @@ namespace AuthMicroservice.Infrastructure.Persistence
         public DbSet<UserRole> UserRoles { get; set; } = null!;
         public DbSet<EmailToken> EmailTokens { get; set; } = null!;
         public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+        public DbSet<ServiceClient> ServiceClients { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -50,6 +51,13 @@ namespace AuthMicroservice.Infrastructure.Persistence
                 .HasOne(rt => rt.User)
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(rt => rt.UserId);
+
+            // Primary key and unique ClientId for OAuth2 Client Credentials Flow
+            modelBuilder.Entity<ServiceClient>()
+                .HasKey(c => c.Id); 
+            modelBuilder.Entity<ServiceClient>()
+                .HasIndex(c => c.ClientId)
+                .IsUnique();
         }
     }
 }
