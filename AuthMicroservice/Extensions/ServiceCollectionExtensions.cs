@@ -42,13 +42,13 @@ namespace AuthMicroservice.Extensions
             services.AddScoped<LogoutUseCase>();
             services.AddScoped<RefreshTokenUseCase>();
             services.AddScoped<SeedAdminUseCase>();
-            //services.AddScoped<SeedServiceClientsUseCase>();
+            services.AddScoped<SeedServiceClientsUseCase>();
             services.AddScoped<GetProfileUseCase>();
             services.AddScoped<GenerateEmailConfirmationUseCase>();
             services.AddScoped<ConfirmEmailUseCase>();
             services.AddScoped<GenerateResetPasswordUseCase>();
             services.AddScoped<ResetPasswordUseCase>();
-            //services.AddScoped<GenerateServiceTokenUseCase>();
+            services.AddScoped<GenerateServiceTokenUseCase>();
 
             // AutoMapper
             services.AddAutoMapper(typeof(AutoMapperProfile));
