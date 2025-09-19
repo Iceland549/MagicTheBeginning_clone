@@ -39,8 +39,15 @@ export async function getGameState(gameId) {
  */
 export async function playCard(gameId, playData) {
   try {
-    console.log('Playing action:', JSON.stringify(playData, null, 2));
-    const { data } = await api.post(`/games/${gameId}/action`, playData);
+    if (!playData || typeof playData !== 'object') {
+      throw new Error('playData is invalid or empty');
+    }
+    const { PlayerId, CardId, Type } = playData;
+    if (!PlayerId || !CardId || !Type) {
+      throw new Error(`Invalid playData: PlayerId=${PlayerId}, CardId=${CardId}, Type=${Type}`);
+    }
+    console.log('Playing action:', JSON.stringify({ PlayerId, CardId, Type }, null, 2));
+    const { data } = await api.post(`/games/${gameId}/action`, { PlayerId, CardId, Type });
     return data;
   } catch (error) {
     console.error('Play card error:', error.response?.data || error.message);
