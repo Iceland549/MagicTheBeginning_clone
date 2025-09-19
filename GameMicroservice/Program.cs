@@ -3,13 +3,14 @@ using GameMicroservice.Application.UseCases;
 using GameMicroservice.Extensions;
 using GameMicroservice.Infrastructure.Mapping;
 using GameMicroservice.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,11 +58,11 @@ builder.Services.AddHealthChecks();
 // Add services to the container.
 builder.Services.AddGameMicroserviceServices(builder.Configuration);
 
-builder.Services.AddControllers()
-  .AddJsonOptions(opts =>
-  {
-      opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-  });
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.PropertyNameCaseInsensitive = true; 
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); 
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
