@@ -42,6 +42,22 @@ namespace GameMicroservice.Presentation.Controllers
             [FromRoute] string gameId,
             [FromBody] PlayerActionDto action)
         {
+            Console.WriteLine($"Received payload: {System.Text.Json.JsonSerializer.Serialize(action)}");
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                Console.WriteLine($"ModelState errors: {string.Join(", ", errors)}");
+                return BadRequest(new
+                {
+                    Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                    Title = "One or more validation errors occurred.",
+                    Status = 400,
+                    Errors = ModelState.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    )
+                });
+            }
             if (string.IsNullOrEmpty(gameId))
                 return BadRequest("Game id is required");
 
