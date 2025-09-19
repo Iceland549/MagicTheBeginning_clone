@@ -1,23 +1,64 @@
-﻿using System.Net.Http;
+﻿using GameMicroservice.Application.DTOs;
+using GameMicroservice.Application.Interfaces;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text.Json;
-using System.Threading.Tasks;
-using GameMicroservice.Application.DTOs;
-
 
 namespace GameMicroservice.Infrastructure
 {
     public class CardHttpClient : ICardClient
     {
         private readonly HttpClient _client;
+        private readonly IConfiguration _config;
+        private string? _cachedToken;
+        private DateTime _tokenExpiry = DateTime.MinValue;
 
-        public CardHttpClient(HttpClient client)
+        public CardHttpClient(HttpClient client, IConfiguration config)
         {
             _client = client;
-            _client.BaseAddress = new Uri("http://gateway:5000"); // URL de l'API Gateway Ocelot
+            _config = config;
+            _client.BaseAddress = new Uri(config["CardMicroserviceBaseUrl"] ?? "http://card:5002");
+        }
+
+        private async Task<string> GetServiceTokenAsync()
+        {
+            // Si token en cache encore valide
+            if (!string.IsNullOrEmpty(_cachedToken) && DateTime.UtcNow < _tokenExpiry)
+                return _cachedToken;
+
+            var authUrl = _config["AuthMicroserviceBaseUrl"] + "/api/service-auth/token";
+            var request = new
+            {
+                ClientId = "game-service",
+                ClientSecret = "SuperSecretGame" // ⚠️ mettre en secrets/env en prod
+            };
+
+            var response = await _client.PostAsJsonAsync(authUrl, request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to get token: {response.StatusCode}, {error}");
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<ServiceTokenResponse>();
+            if (result == null)
+                throw new InvalidOperationException("AuthMicroservice did not return a token");
+
+            _cachedToken = result.AccessToken;
+            _tokenExpiry = result.ExpiresAt.AddMinutes(-5); // marge pour éviter expiration
+            return _cachedToken;
+        }
+
+        private async Task AddAuthHeaderAsync()
+        {
+            var token = await GetServiceTokenAsync();
+            _client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
         public async Task<CardDto?> GetCardByIdAsync(string cardId)
         {
+            await AddAuthHeaderAsync();
             var response = await _client.GetAsync($"/api/cards/{cardId}");
             Console.WriteLine($"Response for card {cardId}: {response.StatusCode}");
             if (!response.IsSuccessStatusCode)
