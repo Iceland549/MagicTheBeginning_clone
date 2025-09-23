@@ -8,21 +8,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using MongoDB.Driver;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Choix du mode DB (Docker ou Local)
-var useLocal = builder.Configuration.GetValue<bool>("UseLocalDb", false);
-
-// Connexions SQL
-var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection")!;
-var localConn = builder.Configuration.GetConnectionString("DefaultConnection_Local")!;
-var connToUse = useLocal ? localConn : defaultConn;
-
 
 // CORS
 builder.Services.AddCors(p =>
@@ -67,6 +59,20 @@ builder.Services.AddHealthChecks();
 
 // Add services to the container.
 builder.Services.AddGameMicroserviceServices(builder.Configuration);
+
+var useLocal = builder.Configuration.GetValue<bool>("UseLocalDb", false);
+
+var mongoConn = useLocal
+    ? builder.Configuration["Mongo:ConnectionString_Local"]
+    : builder.Configuration["Mongo:ConnectionString"];
+
+var dbName = useLocal
+    ? builder.Configuration["Mongo:DatabaseName_Local"]
+    : builder.Configuration["Mongo:DatabaseName"];
+
+builder.Services.AddSingleton<IMongoClient>(new MongoClient(mongoConn));
+builder.Services.AddScoped(sp =>
+    sp.GetRequiredService<IMongoClient>().GetDatabase(dbName));
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
