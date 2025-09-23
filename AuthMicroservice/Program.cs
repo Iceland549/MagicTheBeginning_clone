@@ -52,7 +52,7 @@ builder.Services.AddHealthChecks();
 // DbContext SQL Server with retry
 builder.Services.AddDbContext<AuthDbContext>(opts =>
     opts.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        connToUse,
         sqlOptions => sqlOptions.EnableRetryOnFailure()
     ));
 
