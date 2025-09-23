@@ -1,10 +1,20 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Choix du mode DB (Docker ou Local)
+var useLocal = builder.Configuration.GetValue<bool>("UseLocalDb", false);
+
+// Connexions SQL
+var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection")!;
+var localConn = builder.Configuration.GetConnectionString("DefaultConnection_Local")!;
+var connToUse = useLocal ? localConn : defaultConn;
+
 
 // Configure the gateway to listen on port 5000.
 builder.WebHost.UseUrls("http://+:5000");
@@ -56,7 +66,24 @@ builder.Services.AddOcelot(builder.Configuration);
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "MTB Gateway API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Enter 'Bearer' [space] then your token",
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            new string[] {}
+        }
+    });
+});
 
 var app = builder.Build();
 

@@ -17,6 +17,15 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Choix du mode DB (Docker ou Local)
+var useLocal = builder.Configuration.GetValue<bool>("UseLocalDb", false);
+
+// Connexions SQL
+var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection")!;
+var localConn = builder.Configuration.GetConnectionString("DefaultConnection_Local")!;
+var connToUse = useLocal ? localConn : defaultConn;
+
+
 // CORS
 builder.Services.AddCors(p =>
   p.AddPolicy("AllowReactApp", b =>
@@ -65,7 +74,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "MTB Auth API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "MTB Card API", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,

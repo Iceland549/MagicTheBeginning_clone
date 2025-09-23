@@ -14,6 +14,15 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Choix du mode DB (Docker ou Local)
+var useLocal = builder.Configuration.GetValue<bool>("UseLocalDb", false);
+
+// Connexions SQL
+var defaultConn = builder.Configuration.GetConnectionString("DefaultConnection")!;
+var localConn = builder.Configuration.GetConnectionString("DefaultConnection_Local")!;
+var connToUse = useLocal ? localConn : defaultConn;
+
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
