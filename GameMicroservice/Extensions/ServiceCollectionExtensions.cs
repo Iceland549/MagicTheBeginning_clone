@@ -55,6 +55,7 @@ namespace GameMicroservice.Extensions
             services.AddScoped<AIPlayTurnUseCase>();
             services.AddScoped<AttackUseCase>();
             services.AddScoped<BlockUseCase>();
+            services.AddScoped<DrawCardUseCase>();
             services.AddScoped<DiscardUseCase>();
             services.AddScoped<EndGameUseCase>();
             services.AddScoped<EndTurnUseCase>();
