@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.Interfaces;
+using GameMicroservice.Domain;
+using System.Threading.Tasks;
 
 namespace GameMicroservice.Application.UseCases
 {
@@ -23,13 +25,33 @@ namespace GameMicroservice.Application.UseCases
             if (session == null)
                 return new ActionResultDto { Success = false, Message = "Session introuvable" };
 
-            // Exemples de transitions
-            if (nextPhase == ActionType.PassToCombat && _engine.IsSpellPhase(session, playerId))
-                session = _engine.StartCombatPhase(session, playerId);
-            else if (nextPhase == ActionType.PreEnd && _engine.IsCombatPhase(session, playerId))
-                session = _engine.ResolveCombatPhase(session, playerId);
-            else if (nextPhase == ActionType.EndTurn && _engine.IsEndPhase(session, playerId))
-                session = _engine.EndTurn(session, playerId);
+            switch (nextPhase)
+            {
+                case ActionType.PassToMain:
+                    if (session.CurrentPhase != Phase.Main)
+                    {
+                        session.CurrentPhase = Phase.Main;
+                    }
+                    break;
+
+                case ActionType.PassToCombat:
+                    if (_engine.IsSpellPhase(session, playerId))
+                        session = _engine.StartCombatPhase(session, playerId);
+                    break;
+
+                case ActionType.PreEnd:
+                    if (_engine.IsCombatPhase(session, playerId))
+                        session = _engine.ResolveCombatPhase(session, playerId);
+                    break;
+
+                case ActionType.EndTurn:
+                    if (_engine.IsEndPhase(session, playerId))
+                        session = _engine.EndTurn(session, playerId);
+                    break;
+
+                default:
+                    return new ActionResultDto { Success = false, Message = "Action inconnue" };
+            }
 
             await _repo.UpdateAsync(session);
 
