@@ -2,7 +2,6 @@
 using GameMicroservice.Application.UseCases;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-//using GameMicroservice.Domain;
 using System.Threading.Tasks;
 
 namespace GameMicroservice.Presentation.Controllers
@@ -16,6 +15,7 @@ namespace GameMicroservice.Presentation.Controllers
         private readonly AttackUseCase _attack;
         private readonly BlockUseCase _block;
         private readonly PassPhaseUseCase _passPhase;
+        private readonly DrawCardUseCase _drawCard;
         private readonly DiscardUseCase _discard;
         private readonly EndGameUseCase _endGame;
 
@@ -25,6 +25,7 @@ namespace GameMicroservice.Presentation.Controllers
             AttackUseCase attack,
             BlockUseCase block,
             PassPhaseUseCase passPhase,
+            DrawCardUseCase drawCard,
             DiscardUseCase discard,
             EndGameUseCase endGame)
         {
@@ -74,17 +75,19 @@ namespace GameMicroservice.Presentation.Controllers
                 ActionType.PlayCard => await _playCard.ExecuteAsync(gameId, action.PlayerId, action),
                 ActionType.Attack => await _attack.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
                 ActionType.Block => await _block.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
-                ActionType.PassToCombat or ActionType.PreEnd or ActionType.EndTurn
+                ActionType.PassToMain or ActionType.PassToCombat or ActionType.PreEnd or ActionType.EndTurn
                     => await _passPhase.ExecuteAsync(gameId, action.PlayerId, action.Type),
                 ActionType.CastInstant
-                    => await _playCard.ExecuteAsync(gameId, action.PlayerId, action), // ou méthode dédiée
+                    => await _playCard.ExecuteAsync(gameId, action.PlayerId, action), 
+                ActionType.Draw
+                    => await _drawCard.ExecuteAsync(gameId, action.PlayerId),
                 ActionType.Discard
-                    => await _discard.ExecuteAsync(gameId, action.PlayerId, action.CardsToDiscard!),
+                    => await _discard.ExecuteAsync(gameId, action.PlayerId, action.CardsToDiscard ?? new List<string>()),
                 _ => new ActionResultDto { Success = false, Message = "Action inconnue" }
             };
 
             if (result.EndGame != null)
-                return Ok(result); // ou return StatusCode(410, result); pour signaler la fin de partie
+                return Ok(result); 
 
             return result.Success ? Ok(result) : BadRequest(result);
         }
