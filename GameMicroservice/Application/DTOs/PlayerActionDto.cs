@@ -6,6 +6,7 @@
         PlayLand,
         PlayCard,
         CastInstant,
+        PassToMain,
         PassToCombat,
         Attack,
         Block,
