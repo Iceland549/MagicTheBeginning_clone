@@ -10,8 +10,6 @@ namespace AuthMicroservice.Infrastructure.Mapping
         {
             // Mappe User -> ProfileDto automatiquement
             CreateMap<User, ProfileDto>();
-            CreateMap<EmailToken, EmailTokenDto>();
-            CreateMap<EmailTokenDto, EmailToken>();
         }
     }
 }

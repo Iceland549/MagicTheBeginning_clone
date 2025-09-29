@@ -1,7 +1,6 @@
 ﻿using AuthMicroservice.Application.Interfaces;
 using AuthMicroservice.Application.UseCases;
 using AuthMicroservice.Infrastructure.Config;
-using AuthMicroservice.Infrastructure.Email;
 using AuthMicroservice.Infrastructure.Persistence;
 using AuthMicroservice.Infrastructure.Persistence.Repositories;
 using AuthMicroservice.Infrastructure.Security;
@@ -27,14 +26,12 @@ namespace AuthMicroservice.Extensions
             // Repositories
             services.AddScoped<IUserRepository, EfUserRepository>();
             services.AddScoped<IRoleRepository, EfRoleRepository>();
-            services.AddScoped<IEmailTokenRepository, EfEmailTokenRepository>();
             services.AddScoped<IRefreshTokenRepository, EfRefreshTokenRepository>();
             services.AddScoped<IServiceClientRepository, EfServiceClientRepository>();
 
             // Security services
             services.AddScoped<IJwtService, JwtTokenGenerator>();  // Pure JWT gen/validation
             services.AddScoped<IAuthService, AuthService>();       // Auth flow orchestration
-            services.AddScoped<IEmailService, SmtpEmailService>();
 
             // UseCases
             services.AddScoped<RegisterUserUseCase>();
@@ -44,8 +41,6 @@ namespace AuthMicroservice.Extensions
             services.AddScoped<SeedAdminUseCase>();
             services.AddScoped<SeedServiceClientsUseCase>();
             services.AddScoped<GetProfileUseCase>();
-            services.AddScoped<GenerateEmailConfirmationUseCase>();
-            services.AddScoped<ConfirmEmailUseCase>();
             services.AddScoped<GenerateResetPasswordUseCase>();
             services.AddScoped<ResetPasswordUseCase>();
             services.AddScoped<GenerateServiceTokenUseCase>();

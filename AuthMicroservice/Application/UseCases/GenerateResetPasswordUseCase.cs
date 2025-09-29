@@ -13,16 +13,13 @@ namespace AuthMicroservice.Application.UseCases
     public class GenerateResetPasswordUseCase
     {
         private readonly AuthDbContext _context;
-        private readonly IEmailService _emailService;
         private readonly SmtpSettings _smtp;
 
         public GenerateResetPasswordUseCase(
             AuthDbContext context,
-            IEmailService emailService,
             IOptions<SmtpSettings> smtpOptions)
         {
             _context = context;
-            _emailService = emailService;
             _smtp = smtpOptions.Value;
         }
 
@@ -37,20 +34,10 @@ namespace AuthMicroservice.Application.UseCases
 
             var token = Guid.NewGuid().ToString("N");
 
-            _context.EmailTokens.Add(new EmailToken
-            {
-                Id = Guid.NewGuid().ToString(),
-                UserId = user.Id,
-                Token = token,
-                Expiration = DateTime.UtcNow.AddHours(1),
-                Type = EmailTokenType.ResetPassword
-            });
-
             await _context.SaveChangesAsync();
 
             var link = $"{_smtp.FrontendUrl}/reset-password?token={token}";
             var body = $"<p>Hello,<br/>Click <a href='{link}'>here</a> to reset your password.</p>";
-            await _emailService.SendEmailAsync(email, "Reset your password", body);
         }
     }
 }
