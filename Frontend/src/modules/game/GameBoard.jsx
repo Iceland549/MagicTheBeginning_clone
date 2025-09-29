@@ -22,9 +22,11 @@ export default function GameBoard() {
 
   useEffect(() => {
     if (!playerId) {
+      console.error('No playerId found in localStorage');
       navigate('/login');
       return;
     }
+    console.log('playerId:', playerId);
     // Récupérer les decks
     getAllDecks()
       .then(response => setDecks(response.data || []))
@@ -81,17 +83,31 @@ export default function GameBoard() {
     setLoading(false);
   };
 
-  const onPlay = async (cardId, actionType = 'PlayCard') => {
-    if (!gameId || !playerId) return;
-    setLoading(true);
-    try {
-      await playCard(gameId, { playerId, cardId, action: actionType });
-      await refresh();
-    } catch (error) {
-      alert('Erreur lors de l’action : ' + (error.message || ''));
-    }
-    setLoading(false);
-  };
+const onPlay = async (cardId, actionType = 'PlayCard') => {
+  if (!gameId || !playerId) {
+    console.error(`Invalid parameters: gameId=${gameId}, playerId=${playerId}`);
+    alert('Erreur : paramètres manquants.');
+    return;
+  }
+
+  if (['PlayCard', 'PlayLand'].includes(actionType) && !cardId) {
+    console.error(`Invalid cardId for actionType=${actionType}`);
+    alert('Erreur : aucune carte sélectionnée.');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const playData = { PlayerId: playerId, Type: actionType };
+    console.log('Sending playData:', JSON.stringify(playData, null, 2));
+    await playCard(gameId, playData);
+    await refresh();
+  } catch (error) {
+    console.error('Erreur lors de l’action:', error);
+    alert('Erreur lors de l’action : ' + (error.message || ''));
+  }
+  setLoading(false);
+};
 
   useEffect(() => {
     if (state && state.activePlayerId === state.playerTwoId) {
@@ -115,36 +131,45 @@ export default function GameBoard() {
 
     const actions = [];
 
-    landCards.forEach(card => {
-      actions.push({
-        label: `Jouer Terrain: ${card.cardId}`,
-        type: 'PlayLand',
-        cardId: card.cardId
-      });
-    });
-
-    spellCards.forEach(card => {
-      actions.push({
-        label: `Jouer Sort: ${card.cardId}`,
-        type: 'PlayCard',
-        cardId: card.cardId
-      });
-    });
-
     switch (state.currentPhase) {
+      case 'Draw':
+        actions.push({ label: 'Piocher une carte', type: 'Draw' });
+        actions.push({ label: 'Aller en phase principale', type: 'PassToMain' });
+        break;
+
       case 'Main':
+        landCards.forEach(card => {
+          actions.push({
+            label: `Jouer Terrain: ${card.cardId}`,
+            type: 'PlayLand',
+            cardId: card.cardId
+          });
+        });
+
+        spellCards.forEach(card => {
+          actions.push({
+            label: `Jouer Sort: ${card.cardId}`,
+            type: 'PlayCard',
+            cardId: card.cardId
+          });
+        });
+
         actions.push({ label: 'Passer à la phase de combat', type: 'PassToCombat' });
         actions.push({ label: 'Finir le tour', type: 'EndTurn' });
         break;
+
       case 'Combat':
         actions.push({ label: 'Fin de combat', type: 'PreEnd' });
         break;
+
       case 'End':
         actions.push({ label: 'Finir le tour', type: 'EndTurn' });
         break;
+
       default:
         break;
-    }
+      }
+
 
     return actions;
   };
@@ -251,7 +276,7 @@ export default function GameBoard() {
                 <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
               </div>
               <GameActions actions={buildActions()} onAction={handleAction} />
-              <button className="btn" onClick={refresh} disabled={loading}>Rafraîchir</button>
+              {/* <button className="btn" onClick={refresh} disabled={loading}>Rafraîchir</button> */}
               {loading && <div>Chargement...</div>}
             </div>
           </>
