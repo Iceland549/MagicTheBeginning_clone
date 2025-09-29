@@ -55,6 +55,6 @@ namespace AuthMicroservice.Infrastructure.Persistence.Entities
 
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
-        public ICollection<EmailToken> EmailTokens { get; set; } = new List<EmailToken>();
+        //public ICollection<EmailToken> EmailTokens { get; set; } = new List<EmailToken>();
     }
 }

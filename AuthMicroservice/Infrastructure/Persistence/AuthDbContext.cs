@@ -12,7 +12,7 @@ namespace AuthMicroservice.Infrastructure.Persistence
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<Role> Roles { get; set; } = null!;
         public DbSet<UserRole> UserRoles { get; set; } = null!;
-        public DbSet<EmailToken> EmailTokens { get; set; } = null!;
+        //public DbSet<EmailToken> EmailTokens { get; set; } = null!;
         public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
         public DbSet<ServiceClient> ServiceClients { get; set; } = null!;
 
@@ -36,13 +36,13 @@ namespace AuthMicroservice.Infrastructure.Persistence
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(ur => ur.RoleId);
 
-            // EmailToken primary key
-            modelBuilder.Entity<EmailToken>()
-                .HasKey(et => et.Id);
-            modelBuilder.Entity<EmailToken>()
-                .HasOne(et => et.User)
-                .WithMany(u => u.EmailTokens)
-                .HasForeignKey(et => et.UserId);
+            //// EmailToken primary key
+            //modelBuilder.Entity<EmailToken>()
+            //    .HasKey(et => et.Id);
+            //modelBuilder.Entity<EmailToken>()
+            //    .HasOne(et => et.User)
+            //    .WithMany(u => u.EmailTokens)
+            //    .HasForeignKey(et => et.UserId);
 
             // RefreshToken primary key & relation
             modelBuilder.Entity<RefreshToken>()
