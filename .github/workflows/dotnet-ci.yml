@@ -43,12 +43,11 @@ jobs:
 
       - name: Publish Microservices
         run: |
-          dotnet publish Services/Auth/Auth.csproj -c Release -o ./publish/Auth
-          dotnet publish Services/Card/Card.csproj -c Release -o ./publish/Card
-          dotnet publish Services/Deck/Deck.csproj -c Release -o ./publish/Deck
-          dotnet publish Services/Game/Game.csproj -c Release -o ./publish/Game
-          dotnet publish Gateway/MTBGateway.csproj -c Release -o ./publish/Gateway
-          dotnet publish Frontend/Frontend.csproj -c Release -o ./publish/Frontend
+          dotnet publish AuthMicroservice/AuthMicroservice.csproj -c Release -o ./publish/Auth
+          dotnet publish CardMicroservice/CardMicroservice.csproj -c Release -o ./publish/Card
+          dotnet publish DeckMicroservice/DeckMicroservice.csproj -c Release -o ./publish/Deck
+          dotnet publish GameMicroservice/GameMicroservice.csproj -c Release -o ./publish/Game
+          dotnet publish Gateway/Gateway.csproj -c Release -o ./publish/Gateway
 
       - name: Upload Publish Artifact
         uses: actions/upload-artifact@v4
