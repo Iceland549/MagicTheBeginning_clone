@@ -36,14 +36,6 @@ namespace AuthMicroservice.Infrastructure.Persistence
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(ur => ur.RoleId);
 
-            //// EmailToken primary key
-            //modelBuilder.Entity<EmailToken>()
-            //    .HasKey(et => et.Id);
-            //modelBuilder.Entity<EmailToken>()
-            //    .HasOne(et => et.User)
-            //    .WithMany(u => u.EmailTokens)
-            //    .HasForeignKey(et => et.UserId);
-
             // RefreshToken primary key & relation
             modelBuilder.Entity<RefreshToken>()
                 .HasKey(rt => rt.Token);
