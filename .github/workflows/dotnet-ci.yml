@@ -1,0 +1,58 @@
+name: MTB Microservices CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  SOLUTION_FILE: 'MagicTheBeginning.sln'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore Dependencies
+        run: dotnet restore ${{ env.SOLUTION_FILE }}
+
+      - name: Build Solution
+        run: dotnet build ${{ env.SOLUTION_FILE }} --configuration Release --no-restore
+
+      - name: Run Tests
+        run: dotnet test ${{ env.SOLUTION_FILE }} --no-build --configuration Release --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            **/test-results.trx
+            **/coverage.cobertura.xml
+
+      - name: Publish Microservices
+        run: |
+          dotnet publish Services/Auth/Auth.csproj -c Release -o ./publish/Auth
+          dotnet publish Services/Card/Card.csproj -c Release -o ./publish/Card
+          dotnet publish Services/Deck/Deck.csproj -c Release -o ./publish/Deck
+          dotnet publish Services/Game/Game.csproj -c Release -o ./publish/Game
+          dotnet publish Gateway/MTBGateway.csproj -c Release -o ./publish/Gateway
+          dotnet publish Frontend/Frontend.csproj -c Release -o ./publish/Frontend
+
+      - name: Upload Publish Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MTB-${{ github.sha }}
+          path: ./publish
+
