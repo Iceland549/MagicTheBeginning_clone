@@ -18,7 +18,6 @@ namespace AuthMicroservice.Extensions
         {
             // Configurations
             services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
-            services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
 
             // Repositories
             services.AddScoped<IUserRepository, EfUserRepository>();

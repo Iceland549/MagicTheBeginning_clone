@@ -13,20 +13,14 @@ namespace AuthMicroservice.Application.UseCases
     public class GenerateResetPasswordUseCase
     {
         private readonly AuthDbContext _context;
-        private readonly SmtpSettings _smtp;
 
         public GenerateResetPasswordUseCase(
-            AuthDbContext context,
-            IOptions<SmtpSettings> smtpOptions)
+            AuthDbContext context
+            )
         {
             _context = context;
-            _smtp = smtpOptions.Value;
         }
 
-        /// <summary>
-        /// Generates a reset token and sends the link to the user.
-        /// </summary>
-        /// <param name="email">User's email requesting a reset.</param>
         public async Task ExecuteAsync(string email)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email)
@@ -36,8 +30,6 @@ namespace AuthMicroservice.Application.UseCases
 
             await _context.SaveChangesAsync();
 
-            var link = $"{_smtp.FrontendUrl}/reset-password?token={token}";
-            var body = $"<p>Hello,<br/>Click <a href='{link}'>here</a> to reset your password.</p>";
         }
     }
 }
