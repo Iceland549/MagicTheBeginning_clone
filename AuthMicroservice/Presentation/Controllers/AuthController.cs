@@ -22,7 +22,6 @@ namespace AuthMicroservice.Presentation.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
-            // Appel du UseCase pour se connecter
             var jwt = await _login.ExecuteAsync(req.Email, req.Password);
             if (jwt == null)
                 return Unauthorized("Identifiants invalides");
@@ -32,7 +31,6 @@ namespace AuthMicroservice.Presentation.Controllers
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh([FromBody] RefreshRequest req)
         {
-            // Appel du UseCase pour rafraîchir le token
             var jwt = await _refresh.ExecuteAsync(req.RefreshToken);
             if (jwt == null)
                 return Unauthorized("Refresh token invalide");

@@ -12,7 +12,6 @@ namespace AuthMicroservice.Infrastructure.Persistence
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<Role> Roles { get; set; } = null!;
         public DbSet<UserRole> UserRoles { get; set; } = null!;
-        //public DbSet<EmailToken> EmailTokens { get; set; } = null!;
         public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
         public DbSet<ServiceClient> ServiceClients { get; set; } = null!;
 

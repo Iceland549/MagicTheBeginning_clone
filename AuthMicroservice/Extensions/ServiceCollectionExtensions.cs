@@ -14,9 +14,6 @@ namespace AuthMicroservice.Extensions
 {
     public static class ServiceCollectionExtensions
     {
-        /// <summary>
-        /// Registers authentication and token management services.
-        /// </summary>
         public static IServiceCollection AddAuthMicroserviceServices(this IServiceCollection services, IConfiguration configuration)
         {
             // Configurations
@@ -51,10 +48,6 @@ namespace AuthMicroservice.Extensions
             return services;
         }
     
-
-        /// <summary>
-        /// Adds database context for Entity Framework Core.
-        /// </summary>
         public static IServiceCollection AddAuthDbContext(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDbContext<AuthDbContext>(options =>
