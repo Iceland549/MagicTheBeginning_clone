@@ -27,7 +27,7 @@ namespace GameMicroservice.Tests
             {
                 PlayerId = "p2",
                 Type = GameMicroservice.Application.DTOs.ActionType.PlayCard,
-                CardId = "card1"
+                CardName = "card1"
             };
 
             var mockRepo = new Mock<IGameSessionRepository>();
@@ -79,7 +79,7 @@ namespace GameMicroservice.Tests
             {
                 PlayerId = "p1",
                 Type = GameMicroservice.Application.DTOs.ActionType.PlayCard,
-                CardId = "card1"
+                CardName = "card1"
             };
 
             var mockRepo = new Mock<IGameSessionRepository>();
