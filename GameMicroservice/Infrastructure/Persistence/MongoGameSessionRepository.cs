@@ -36,7 +36,7 @@ namespace GameMicroservice.Infrastructure.Persistence
             var p2Deck = allDecks.FirstOrDefault(d => d.Id == deckIdP2)
                          ?? throw new InvalidOperationException($"No deck found with ID {deckIdP2}");
 
-            // Convert DeckDto.Cards to List<string> (cardName or cardId)
+            // Convert DeckDto.Cards to List<string> (cardName)
             var p1Library = Shuffle(p1Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardName, c.Quantity)).ToList());
             var p2Library = Shuffle(p2Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardName, c.Quantity)).ToList());
 
@@ -97,12 +97,12 @@ namespace GameMicroservice.Infrastructure.Persistence
                     if (library.Count > 0)
                     {
                         var card = library[0];
-                        var details = await _cardClient.GetCardByIdAsync(card.CardId);
+                        var details = await _cardClient.GetCardByNameAsync(card.CardName);
                         if (details != null)
                         {
                             session.Zones[$"{playerId}_hand"].Add(new CardInGame
                             {
-                                CardId = details.Id,
+                                CardName = details.Name,
                                 Name = details.Name,
                                 TypeLine = details.TypeLine,
                                 ImageUrl = details.ImageUrl,
@@ -141,7 +141,7 @@ namespace GameMicroservice.Infrastructure.Persistence
 
             // Retire la carte de la main de l'active player
             var handKey = $"{session.ActivePlayerId}_hand";
-            var cardInHand = session.Zones[handKey].FirstOrDefault(c => c.CardId == cardName)
+            var cardInHand = session.Zones[handKey].FirstOrDefault(c => c.CardName == cardName)
                 ?? throw new InvalidOperationException("Carte non présente en main");
 
             // Ajoute au champ de bataille

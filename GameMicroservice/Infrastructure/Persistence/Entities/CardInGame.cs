@@ -4,8 +4,8 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
 {
     public class CardInGame
     {
-        [BsonElement("cardId")]
-        public string CardId { get; set; } = null!;
+        [BsonElement("cardName")]
+        public string CardName { get; set; } = null!;
 
         [BsonElement("name")]
         public string Name { get; set; } = null!;
@@ -33,11 +33,11 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
 
         public CardInGame() { }
 
-        public CardInGame(string cardId)
+        public CardInGame(string cardName)
         {
-            CardId = cardId;
+            CardName = cardName;
             IsTapped = false;
-            HasSummoningSickness = true;
+            HasSummoningSickness = false;
         }
     }
 }
