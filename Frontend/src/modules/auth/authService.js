@@ -6,11 +6,17 @@ import api from "../../services/api";
  * @returns {Promise} Login response data
  */
 export async function login(credentials) {
-  const { data } = await api.post("/auth/login", credentials);
-  localStorage.setItem("accessToken", data.accessToken);
-  localStorage.setItem("refreshToken", data.refreshToken);
-  localStorage.setItem("userId",       data.userId);  
-  return data;
+  try {
+    const { data } = await api.post("/auth/login", credentials);
+    localStorage.setItem("accessToken", data.accessToken);
+    localStorage.setItem("refreshToken", data.refreshToken);
+    localStorage.setItem("userId", data.userId); 
+    localStorage.setItem('expiresAt', data.expiresAt); 
+    return data;
+  } catch (error) {
+    console.error('Login error:', error.response?.data || error.message);
+    throw error.response?.data || error;
+  }
 }
 
 export async function logout() {
@@ -20,7 +26,6 @@ export async function logout() {
   }
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
-  // window.location.href = '/login'; // Redirect to login page
   return Promise.resolve(); // Ensure the function returns a promise
 }
 

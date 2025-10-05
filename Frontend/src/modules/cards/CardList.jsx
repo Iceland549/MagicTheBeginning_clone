@@ -6,7 +6,7 @@ import { useSelection } from '../context/selectionContext';
 export default function CardList() {
   const [search, setSearch] = useState('');
   const [card, setCard] = useState(null);
-  const [quantity, setQuantity] = useState(1); // Ajout d'un état pour la quantité
+  const [quantity, setQuantity] = useState(1); 
   const [feedback, setFeedback] = useState('');
   const navigate = useNavigate();
   const { addCard } = useSelection();
