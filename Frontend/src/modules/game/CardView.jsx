@@ -8,8 +8,8 @@ export default function CardView({ card, onPlay, disabled }) {
     return null;
   }
 
-  if (!card.cardId) {
-    console.error('CardView: card.cardId is undefined', card);
+  if (!card.cardName) {
+    console.error('CardView: card.cardName is undefined', card);
   }
 
   return (
@@ -23,14 +23,14 @@ export default function CardView({ card, onPlay, disabled }) {
       {typeof onPlay === 'function' && (
         <button
           onClick={() => {
-            if (!card.cardId) {
-              console.error('CardView: Cannot play card, cardId is undefined');
+            if (!card.cardName) {
+              console.error('CardView: Cannot play card, cardName is undefined');
               alert('Erreur : Carte sans ID');
               return;
             }
-            onPlay(card.cardId);
+            onPlay(card.cardName);
           }}
-          disabled={disabled || !card.cardId}
+          disabled={disabled || !card.cardName}
         >
           Jouer
         </button>
