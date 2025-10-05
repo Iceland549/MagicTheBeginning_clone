@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.UseCases;
+using System.Security.Claims;
 
 namespace GameMicroservice.Presentation.Controllers
 {
@@ -14,18 +15,15 @@ namespace GameMicroservice.Presentation.Controllers
         private readonly StartGameUseCase _start;
         private readonly PlayCardUseCase _play;
         private readonly GetGameStateUseCase _state;
-        private readonly AIPlayTurnUseCase _aiTurn;
 
         public GameController(
             StartGameUseCase start,
             PlayCardUseCase play,
-            GetGameStateUseCase state,
-            AIPlayTurnUseCase aiTurn)
+            GetGameStateUseCase state)
         {
             _start = start ?? throw new ArgumentNullException(nameof(start));
             _play = play ?? throw new ArgumentNullException(nameof(play));
             _state = state ?? throw new ArgumentNullException(nameof(state));
-            _aiTurn = aiTurn ?? throw new ArgumentNullException(nameof(aiTurn));
         }
 
         [HttpPost("start")]
@@ -38,18 +36,10 @@ namespace GameMicroservice.Presentation.Controllers
             return Ok(game);
         }
 
-        [HttpPost("{gameId}/ai-turn")]
-        public async Task<ActionResult<GameSessionDto>> AITurn(string gameId)
-        {
-            var result = await _aiTurn.ExecuteAsync(gameId);
-            if (result == null) return NotFound();
-            return Ok(result);
-        }
-
         [HttpGet("{gameId}")]
         public async Task<IActionResult> GetGameState(string gameId)
         {
-            var playerId = User.Identity?.Name;
+            var playerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(playerId))
                 return Unauthorized("User not authenticated");
 
