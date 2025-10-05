@@ -28,10 +28,11 @@ namespace GameMicroservice.Application.UseCases
             switch (nextPhase)
             {
                 case ActionType.PassToMain:
-                    if (session.CurrentPhase != Phase.Main)
-                    {
-                        session.CurrentPhase = Phase.Main;
-                    }
+                    if (session.CurrentPhase != Phase.Draw)
+                        return new ActionResultDto { Success = false, Message = "Impossible de passer à la phase principale : pas en phase de pioche" };
+                    if (session.ActivePlayerId != playerId)
+                        return new ActionResultDto { Success = false, Message = "Ce n’est pas votre tour" };
+                    session.CurrentPhase = Phase.Main;
                     break;
 
                 case ActionType.PassToCombat:
@@ -45,8 +46,11 @@ namespace GameMicroservice.Application.UseCases
                     break;
 
                 case ActionType.EndTurn:
-                    if (_engine.IsEndPhase(session, playerId))
+                    if (session.CurrentPhase == Phase.Main || _engine.IsEndPhase(session, playerId))
+                    {
+                        session.CurrentPhase = Phase.End; 
                         session = _engine.EndTurn(session, playerId);
+                    }
                     break;
 
                 default:
