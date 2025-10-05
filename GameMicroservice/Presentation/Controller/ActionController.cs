@@ -35,6 +35,7 @@ namespace GameMicroservice.Presentation.Controllers
             _block = block;
             _passPhase = passPhase;
             _discard = discard;
+            _drawCard = drawCard;
             _endGame = endGame;
         }
         [Authorize]
@@ -43,11 +44,12 @@ namespace GameMicroservice.Presentation.Controllers
             [FromRoute] string gameId,
             [FromBody] PlayerActionDto action)
         {
-            Console.WriteLine($"Received payload: {System.Text.Json.JsonSerializer.Serialize(action)}");
+            Console.WriteLine($"[ActionController] Payload reçu: {System.Text.Json.JsonSerializer.Serialize(action)} pour GameId={gameId}");
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-                Console.WriteLine($"ModelState errors: {string.Join(", ", errors)}");
+                Console.WriteLine($"[ActionController] Erreurs ModelState: {string.Join(", ", errors)}");
                 return BadRequest(new
                 {
                     Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
@@ -55,41 +57,78 @@ namespace GameMicroservice.Presentation.Controllers
                     Status = 400,
                     Errors = ModelState.ToDictionary(
                         kvp => kvp.Key,
-                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                        kvp => kvp.Value?.Errors.Select(e => e.ErrorMessage).ToArray()
                     )
                 });
             }
+
             if (string.IsNullOrEmpty(gameId))
                 return BadRequest("Game id is required");
 
             if (action == null)
                 return BadRequest("Action is required");
 
-            // NOTE: ensure PlayerId is provided (or derive from authenticated user)
             if (string.IsNullOrEmpty(action.PlayerId))
                 return BadRequest("PlayerId is required in payload");
 
-            ActionResultDto result = action.Type switch
+            Console.WriteLine($"[ActionController] Execution action {action.Type} pour Player={action.PlayerId}, Game={gameId}");
+
+            try
             {
-                ActionType.PlayLand => await _playLand.ExecuteAsync(gameId, action.PlayerId, action.CardId!),
-                ActionType.PlayCard => await _playCard.ExecuteAsync(gameId, action.PlayerId, action),
-                ActionType.Attack => await _attack.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
-                ActionType.Block => await _block.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
-                ActionType.PassToMain or ActionType.PassToCombat or ActionType.PreEnd or ActionType.EndTurn
-                    => await _passPhase.ExecuteAsync(gameId, action.PlayerId, action.Type),
-                ActionType.CastInstant
-                    => await _playCard.ExecuteAsync(gameId, action.PlayerId, action), 
-                ActionType.Draw
-                    => await _drawCard.ExecuteAsync(gameId, action.PlayerId),
-                ActionType.Discard
-                    => await _discard.ExecuteAsync(gameId, action.PlayerId, action.CardsToDiscard ?? new List<string>()),
-                _ => new ActionResultDto { Success = false, Message = "Action inconnue" }
-            };
+                ActionResultDto result = action.Type switch
+                {
+                    ActionType.PlayLand => await _playLand.ExecuteAsync(gameId, action.PlayerId, action.CardName!),
+                    ActionType.PlayCard => await _playCard.ExecuteAsync(gameId, action.PlayerId, action),
+                    ActionType.Attack => await _attack.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
+                    ActionType.Block => await _block.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
+                    ActionType.PassToMain or ActionType.PassToCombat or ActionType.PreEnd or ActionType.EndTurn
+                        => await _passPhase.ExecuteAsync(gameId, action.PlayerId, action.Type),
+                    ActionType.CastInstant
+                        => await _playCard.ExecuteAsync(gameId, action.PlayerId, action),
+                    ActionType.Draw
+                        => await _drawCard.ExecuteAsync(gameId, action.PlayerId),
+                    ActionType.Discard
+                        => await _discard.ExecuteAsync(gameId, action.PlayerId, action.CardsToDiscard ?? new List<string>()),
+                    _ => new ActionResultDto { Success = false, Message = "Action inconnue" }
+                };
 
-            if (result.EndGame != null)
-                return Ok(result); 
+                Console.WriteLine($"[ActionController] Result: Success={result.Success}, Message={result.Message}");
 
-            return result.Success ? Ok(result) : BadRequest(result);
+                if (result.EndGame != null)
+                    return Ok(result);
+
+                return result.Success ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ActionController][ERREUR] Exception non gérée pendant l’action {action.Type}: {ex.Message}\n{ex.StackTrace}");
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Message = "Erreur interne côté serveur",
+                    Exception = ex.Message   
+                });
+            }
+        }
+    }
+    [Route("api/games/{gameId}/ai-turn")]
+    public class AITurnController : ControllerBase
+    {
+        private readonly AIPlayTurnUseCase _aiPlayTurn;
+
+        public AITurnController(AIPlayTurnUseCase aiPlayTurn)
+        {
+            _aiPlayTurn = aiPlayTurn;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> PlayAITurn([FromRoute] string gameId)
+        {
+            var result = await _aiPlayTurn.ExecuteAsync(gameId);
+            if (result == null)
+                return NotFound("Game session not found or AI could not play.");
+
+            return Ok(result);
         }
     }
 }
