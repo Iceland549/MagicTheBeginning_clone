@@ -50,13 +50,19 @@ namespace GameMicroservice.Application.UseCases
                     break;
 
                 // Execute action via PlayCardUseCase
-                if (action.Type == ActionType.PlayCard && !string.IsNullOrEmpty(action.CardId))
+                if (action.Type == ActionType.PlayCard && !string.IsNullOrEmpty(action.CardName))
                 {
-                    var sessionDto = await _play.ExecuteAsync(sessionId, sessionEntity.ActivePlayerId, action);
-                    if (sessionDto == null)
-                        return null;
-                    sessionEntity = _mapper.Map<GameSession>(sessionDto);
+                    var result = await _play.ExecuteAsync(sessionId, sessionEntity.ActivePlayerId, action);
+                    if (result?.GameState == null || !result.Success)
+                    {
+                        Console.WriteLine($"[AIPlayTurn] Impossible de jouer {action.CardName}, on essaie autre chose");
+                        // Retirer cette carte de la main pour ne pas boucler dessus
+                        hand.RemoveAll(c => c.CardName == action.CardName);
+                        continue; // Reprendre la boucle avec une autre carte
+                    }
+                    sessionEntity = _mapper.Map<GameSession>(result.GameState);
                 }
+
             }
 
             // Ensure combat/pre-end
