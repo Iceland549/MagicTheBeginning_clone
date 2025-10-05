@@ -1,5 +1,6 @@
 {
   "Routes": [
+    // -------------------- AUTH --------------------
     {
       "DownstreamPathTemplate": "/health",
       "DownstreamScheme": "http",
@@ -82,7 +83,7 @@
       ],
       "UpstreamPathTemplate": "/api/cards/{everything}",
       "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
-      "AuthenticationOptions": {} 
+      "AuthenticationOptions": {}
     },
 
     // -------------------- DECKS --------------------
@@ -140,12 +141,14 @@
       ],
       "UpstreamPathTemplate": "/api/games/{everything}",
       "UpstreamHttpMethod": [ "POST", "GET", "PUT", "DELETE" ],
-      "AuthenticationOptions": {}
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
     }
   ],
 
   "GlobalConfiguration": {
     "BaseUrl": "http://gateway:5000"
-    //"AuthenticationOptions": { "AuthenticationProviderKey": "Bearer" }
   }
 }
