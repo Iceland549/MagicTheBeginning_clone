@@ -21,6 +21,8 @@ namespace GameMicroservice.Application.UseCases
             _gameSessionRepository = gameSessionRepository;
         }
 
+        #region Turn flow & draw
+
         public bool HasDrawnThisTurn(GameSession s, string playerId)
         {
             var player = s.Players.FirstOrDefault(p => p.PlayerId == playerId)
@@ -30,8 +32,6 @@ namespace GameMicroservice.Application.UseCases
 
         public GameSession DrawStep(GameSession s, string playerId)
         {
-            Console.WriteLine($"[GameRulesEngine] >>> Entrée DrawStep: Phase={s.CurrentPhase}, Player={playerId}, Library={s.Zones[$"{playerId}_library"].Count}, Hand={s.Zones[$"{playerId}_hand"].Count}");
-
             if (s.CurrentPhase != Phase.Draw)
                 throw new InvalidOperationException("Not in Draw phase");
             if (HasDrawnThisTurn(s, playerId))
@@ -39,6 +39,7 @@ namespace GameMicroservice.Application.UseCases
 
             var libraryKey = $"{playerId}_library";
             var handKey = $"{playerId}_hand";
+
             if (!s.Zones.ContainsKey(libraryKey) || s.Zones[libraryKey].Count == 0)
                 throw new InvalidOperationException("Library is empty");
 
@@ -49,25 +50,33 @@ namespace GameMicroservice.Application.UseCases
             var player = s.Players.First(p => p.PlayerId == playerId);
             player.HasDrawnThisTurn = true;
             s.CurrentPhase = Phase.Main;
-            Console.WriteLine($"[GameRulesEngine] <<< Sortie DrawStep: Carte={card.CardName}, NewPhase={s.CurrentPhase}, Library={s.Zones[libraryKey].Count}, Hand={s.Zones[handKey].Count}");
 
             return s;
         }
 
+        #endregion
+
+        #region Land play (validate, apply, landfall)
+
         public bool IsLandPhase(GameSession s, string playerId)
         {
-            return s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId && s.Players.First(p => p.PlayerId == playerId).LandsPlayedThisTurn < 1;
+            return s.CurrentPhase == Phase.Main &&
+                   s.ActivePlayerId == playerId &&
+                   s.Players.First(p => p.PlayerId == playerId).LandsPlayedThisTurn < 1;
         }
 
         public async Task ValidatePlayLandAsync(GameSession s, string playerId, string cardName)
         {
             if (!IsLandPhase(s, playerId))
                 throw new InvalidOperationException("Cannot play land now");
+
             var handKey = $"{playerId}_hand";
-            if (!s.Zones[handKey].Any(c => c.CardName == cardName))
+            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardName == cardName))
                 throw new InvalidOperationException("Card not in hand");
+
             var card = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
+
             if (!card.TypeLine.Contains("Land"))
                 throw new InvalidOperationException("Card is not a land");
 
@@ -76,6 +85,7 @@ namespace GameMicroservice.Application.UseCases
                 throw new InvalidOperationException("Only one land per turn allowed");
         }
 
+        // Keep a synchronous helper (existing code uses synchronous PlayLand in several places)
         public GameSession PlayLand(GameSession s, string playerId, string cardName)
         {
             var handKey = $"{playerId}_hand";
@@ -84,37 +94,83 @@ namespace GameMicroservice.Application.UseCases
             var card = s.Zones[handKey].FirstOrDefault(c => c.CardName == cardName)
                 ?? throw new InvalidOperationException("Card not found in hand");
 
+            // move card: hand -> battlefield
             s.Zones[handKey].Remove(card);
             s.Zones[battlefieldKey].Add(card);
 
             var player = s.Players.First(p => p.PlayerId == playerId);
             player.LandsPlayedThisTurn++;
 
+            // Ensure the CardInGame has TypeLine (useful if object in session is "light")
+            if (string.IsNullOrEmpty(card.TypeLine))
+            {
+                try
+                {
+                    var details = _cardClient.GetCardByNameAsync(cardName).GetAwaiter().GetResult();
+                    if (details != null)
+                    {
+                        card.TypeLine = card.TypeLine ?? details.TypeLine;
+                        card.ManaCost = card.ManaCost ?? details.ManaCost;
+                    }
+                }
+                catch
+                {
+                    // best-effort, fail safe: if we can't fetch details, proceed without throwing
+                }
+            }
+
             return OnLandfall(s, playerId, cardName);
+        }
+
+        // Async wrapper to respect IGameRulesEngine signature if interface expects PlayLandAsync
+        public Task<GameSession> PlayLandAsync(GameSession s, string playerId, string cardName)
+        {
+            var result = PlayLand(s, playerId, cardName);
+            return Task.FromResult(result);
         }
 
         public GameSession OnLandfall(GameSession s, string playerId, string cardName)
         {
+            var battlefieldKey = $"{playerId}_battlefield";
             var player = s.Players.First(p => p.PlayerId == playerId);
-            player.ManaPool["Colorless"] = player.ManaPool.GetValueOrDefault("Colorless", 0) + 1;
+            var landCard = s.Zones[battlefieldKey].FirstOrDefault(c => c.CardName == cardName);
+
+            if (landCard == null)
+                throw new InvalidOperationException("Land not found on battlefield");
+
+            string manaColorKey = "Colorless";
+            var typeLine = landCard.TypeLine ?? string.Empty;
+
+            if (typeLine.IndexOf("Forest", StringComparison.OrdinalIgnoreCase) >= 0) manaColorKey = "Green";
+            else if (typeLine.IndexOf("Swamp", StringComparison.OrdinalIgnoreCase) >= 0) manaColorKey = "Black";
+            else if (typeLine.IndexOf("Plains", StringComparison.OrdinalIgnoreCase) >= 0) manaColorKey = "White";
+            else if (typeLine.IndexOf("Mountain", StringComparison.OrdinalIgnoreCase) >= 0) manaColorKey = "Red";
+            else if (typeLine.IndexOf("Island", StringComparison.OrdinalIgnoreCase) >= 0) manaColorKey = "Blue";
+
+            player.ManaPool[manaColorKey] = player.ManaPool.GetValueOrDefault(manaColorKey, 0) + 1;
+            Console.WriteLine($"[GameRulesEngine] OnLandfall: +1 {manaColorKey} to {playerId} (now {player.ManaPool[manaColorKey]})");
             return s;
         }
 
+        #endregion
+
+        #region Play spells / instants (validate + apply)
+
         public bool IsMainPhase(GameSession s, string playerId)
-        {
-            return s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId;
-        }
+            => s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId;
 
         public async Task ValidatePlayAsync(GameSession s, string playerId, string cardName)
         {
             if (!IsMainPhase(s, playerId))
                 throw new InvalidOperationException("Not in Main phase");
+
             var handKey = $"{playerId}_hand";
-            if (!s.Zones[handKey].Any(c => c.CardName == cardName))
+            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardName == cardName))
                 throw new InvalidOperationException("Card not in hand");
 
             var card = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
+
             if (!CanPayManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, card.ManaCost))
                 throw new InvalidOperationException("Insufficient mana to cast this card");
         }
@@ -122,36 +178,47 @@ namespace GameMicroservice.Application.UseCases
         public async Task<GameSession> PlayCardAsync(GameSession s, string playerId, string cardName)
         {
             await ValidatePlayAsync(s, playerId, cardName);
+
             var handKey = $"{playerId}_hand";
             var battlefieldKey = $"{playerId}_battlefield";
-            var cardInHand = s.Zones[handKey].First(c => c.CardName == cardName);
+
+            var cardInHand = s.Zones[handKey].FirstOrDefault(c => c.CardName == cardName);
             if (cardInHand == null)
                 throw new InvalidOperationException("Card not found in hand");
+
+            // Remove from hand, create in-game instance
             s.Zones[handKey].Remove(cardInHand);
             var cardOnBattlefield = new CardInGame(cardName) { HasSummoningSickness = true };
             s.Zones[battlefieldKey].Add(cardOnBattlefield);
 
-            var card = await _cardClient.GetCardByNameAsync(cardName)
+            var cardDetails = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
-            DeductManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, card.ManaCost);
+
+            // Deduct mana
+            DeductManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, cardDetails.ManaCost);
+
+            // Optionally fill metadata on in-game instance
+            cardOnBattlefield.TypeLine = cardDetails.TypeLine;
+            cardOnBattlefield.ManaCost = cardDetails.ManaCost;
+
             return s;
         }
 
         public bool IsSpellPhase(GameSession s, string playerId)
-        {
-            return s.CurrentPhase == Phase.Main || s.CurrentPhase == Phase.Combat;
-        }
+            => s.CurrentPhase == Phase.Main || s.CurrentPhase == Phase.Combat;
 
         public async Task ValidateInstantAsync(GameSession s, string playerId, string cardName)
         {
             if (!IsSpellPhase(s, playerId))
                 throw new InvalidOperationException("Cannot cast instant now");
+
             var handKey = $"{playerId}_hand";
-            if (!s.Zones[handKey].Any(c => c.CardName == cardName))
+            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardName == cardName))
                 throw new InvalidOperationException("Card not in hand");
 
             var card = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
+
             if (!card.TypeLine.Contains("Instant"))
                 throw new InvalidOperationException("Card is not an instant");
 
@@ -162,18 +229,32 @@ namespace GameMicroservice.Application.UseCases
         public async Task<GameSession> CastInstantAsync(GameSession s, string playerId, string cardName, string? targetId)
         {
             await ValidateInstantAsync(s, playerId, cardName);
+
             var handKey = $"{playerId}_hand";
             var battlefieldKey = $"{playerId}_battlefield";
-            var cardInHand = s.Zones[handKey].First(c => c.CardName == cardName);
+
+            var cardInHand = s.Zones[handKey].FirstOrDefault(c => c.CardName == cardName)
+                ?? throw new InvalidOperationException("Card not in hand");
+
             s.Zones[handKey].Remove(cardInHand);
             var cardOnBattlefield = new CardInGame(cardName) { HasSummoningSickness = true };
             s.Zones[battlefieldKey].Add(cardOnBattlefield);
 
-            var card = await _cardClient.GetCardByNameAsync(cardName)
+            var cardDetails = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
-            DeductManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, card.ManaCost);
+
+            DeductManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, cardDetails.ManaCost);
+
+            cardOnBattlefield.TypeLine = cardDetails.TypeLine;
+            cardOnBattlefield.ManaCost = cardDetails.ManaCost;
+
+            // targetId handling left to higher-level logic (effects, damage, etc.)
             return s;
         }
+
+        #endregion
+
+        #region Combat / Attack / Block
 
         public GameSession StartCombatPhase(GameSession s, string playerId)
         {
@@ -184,14 +265,13 @@ namespace GameMicroservice.Application.UseCases
         }
 
         public bool IsCombatPhase(GameSession s, string playerId)
-        {
-            return s.CurrentPhase == Phase.Combat && s.ActivePlayerId == playerId;
-        }
+            => s.CurrentPhase == Phase.Combat && s.ActivePlayerId == playerId;
 
         public async Task ValidateAttackAsync(GameSession s, string playerId, List<string> attackers)
         {
             if (!IsCombatPhase(s, playerId))
                 throw new InvalidOperationException("Not in Combat phase");
+
             var battlefieldKey = $"{playerId}_battlefield";
             foreach (var cardName in attackers)
             {
@@ -199,10 +279,10 @@ namespace GameMicroservice.Application.UseCases
                     ?? throw new InvalidOperationException($"Card {cardName} not on battlefield");
                 if (cardInGame.IsTapped || cardInGame.HasSummoningSickness)
                     throw new InvalidOperationException($"Card {cardName} cannot attack");
-                // Validation asynchrone : vérifier que la carte est une créature
-                var cardDetails = await _cardClient.GetCardByNameAsync(cardName)
+
+                var details = await _cardClient.GetCardByNameAsync(cardName)
                     ?? throw new KeyNotFoundException($"Card {cardName} not found");
-                if (!cardDetails.TypeLine.Contains("Creature"))
+                if (!details.TypeLine.Contains("Creature"))
                     throw new InvalidOperationException($"Card {cardName} is not a creature and cannot attack");
             }
         }
@@ -210,40 +290,48 @@ namespace GameMicroservice.Application.UseCases
         public async Task<GameSession> ResolveCombatAsync(GameSession s, string playerId, List<string> attackers, Dictionary<string, string> blockers)
         {
             await ValidateAttackAsync(s, playerId, attackers);
+
             var opponentId = s.PlayerOneId == playerId ? s.PlayerTwoId : s.PlayerOneId;
             var opponentBattlefieldKey = $"{opponentId}_battlefield";
+            var myBattlefieldKey = $"{playerId}_battlefield";
             var graveyardKey = $"{playerId}_graveyard";
             var opponentGraveyardKey = $"{opponentId}_graveyard";
 
-            foreach (var blocker in blockers)
+            // Handle pairwise attacker vs blocker exchanges
+            foreach (var kvp in blockers)
             {
-                var blockerCard = s.Zones[opponentBattlefieldKey].FirstOrDefault(c => c.CardName == blocker.Value)
-                    ?? throw new InvalidOperationException($"Blocker {blocker.Value} not on battlefield");
-                var attackerCard = s.Zones[$"{playerId}_battlefield"].FirstOrDefault(c => c.CardName == blocker.Key)
-                    ?? throw new InvalidOperationException($"Attacker {blocker.Key} not on battlefield");
+                var attackerName = kvp.Key;
+                var blockerName = kvp.Value;
 
-                var attackerDetails = await _cardClient.GetCardByNameAsync(blocker.Key)
+                var attackerCard = s.Zones[myBattlefieldKey].FirstOrDefault(c => c.CardName == attackerName)
+                    ?? throw new InvalidOperationException($"Attacker {attackerName} not on battlefield");
+                var blockerCard = s.Zones[opponentBattlefieldKey].FirstOrDefault(c => c.CardName == blockerName)
+                    ?? throw new InvalidOperationException($"Blocker {blockerName} not on battlefield");
+
+                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerName)
                     ?? throw new KeyNotFoundException("Attacker card not found");
-                var blockerDetails = await _cardClient.GetCardByNameAsync(blocker.Value)
+                var blockerDetails = await _cardClient.GetCardByNameAsync(blockerName)
                     ?? throw new KeyNotFoundException("Blocker card not found");
 
-                if (attackerDetails.Power >= blockerDetails.Toughness)
+                if ((attackerDetails.Power ?? 0) >= (blockerDetails.Toughness ?? int.MaxValue))
                 {
                     s.Zones[opponentBattlefieldKey].Remove(blockerCard);
                     s.Zones[opponentGraveyardKey].Add(blockerCard);
                 }
-                if (blockerDetails.Power >= attackerDetails.Toughness)
+
+                if ((blockerDetails.Power ?? 0) >= (attackerDetails.Toughness ?? int.MaxValue))
                 {
-                    s.Zones[$"{playerId}_battlefield"].Remove(attackerCard);
+                    s.Zones[myBattlefieldKey].Remove(attackerCard);
                     s.Zones[graveyardKey].Add(attackerCard);
                 }
             }
 
-            var unblockedAttackers = attackers.Where(a => !blockers.ContainsKey(a)).ToList();
+            // Unblocked attackers deal damage to opponent player
+            var unblocked = attackers.Where(a => !blockers.ContainsKey(a)).ToList();
             var opponent = s.Players.First(p => p.PlayerId == opponentId);
-            foreach (var attackerId in unblockedAttackers)
+            foreach (var attackerName in unblocked)
             {
-                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerId)
+                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerName)
                     ?? throw new KeyNotFoundException("Attacker card not found");
                 opponent.LifeTotal -= attackerDetails.Power ?? 0;
             }
@@ -259,10 +347,12 @@ namespace GameMicroservice.Application.UseCases
             return s;
         }
 
+        #endregion
+
+        #region Pre-end / end-turn / blocks
+
         public bool IsPreEndPhase(GameSession s, string playerId)
-        {
-            return s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId;
-        }
+            => s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId;
 
         public GameSession PreEndCheck(GameSession s, string playerId)
         {
@@ -272,139 +362,32 @@ namespace GameMicroservice.Application.UseCases
         }
 
         public bool IsEndPhase(GameSession s, string playerId)
-        {
-            return s.CurrentPhase == Phase.End && s.ActivePlayerId == playerId;
-        }
+            => s.CurrentPhase == Phase.End && s.ActivePlayerId == playerId;
 
         public GameSession EndTurn(GameSession s, string playerId)
         {
             if (!IsEndPhase(s, playerId))
                 throw new InvalidOperationException("Not in End phase");
+
             s.ActivePlayerId = s.PlayerOneId == playerId ? s.PlayerTwoId : s.PlayerOneId;
             s.CurrentPhase = Phase.Draw;
 
-            foreach (var player in s.Players)
+            foreach (var p in s.Players)
             {
-                player.HasDrawnThisTurn = false;
-                player.LandsPlayedThisTurn = 0;
+                p.HasDrawnThisTurn = false;
+                p.LandsPlayedThisTurn = 0;
             }
+
             return s;
         }
 
-        public async Task<GameSession> LoadSessionAsync(string sessionId)
-        {
-            var session = await _gameSessionRepository.GetByIdAsync(sessionId)
-                ?? throw new InvalidOperationException($"Session {sessionId} not found");
-            return session;
-        }
-
-        public async Task SaveSessionAsync(GameSession session)
-        {
-            if (session == null)
-                throw new ArgumentNullException(nameof(session));
-            await _gameSessionRepository.UpdateAsync(session);
-        }
-
-        private bool CanPayManaCost(Dictionary<string, int> manaPool, string manaCost)
-        {
-            if (string.IsNullOrEmpty(manaCost))
-                return true;
-
-            var requiredMana = new Dictionary<string, int>();
-            var genericMana = 0;
-
-            foreach (var c in manaCost.Replace("{", "").Split('}'))
-            {
-                if (string.IsNullOrEmpty(c)) continue;
-                if (int.TryParse(c, out int value))
-                    genericMana += value;
-                else
-                {
-                    string color;
-                    switch (c)
-                    {
-                        case "W": color = "White"; break;
-                        case "U": color = "Blue"; break;
-                        case "B": color = "Black"; break;
-                        case "R": color = "Red"; break;
-                        case "G": color = "Green"; break;
-                        case "C": color = "Colorless"; break;
-                        default: throw new InvalidOperationException($"Unknown mana color: {c}");
-                    }
-                    requiredMana[color] = requiredMana.GetValueOrDefault(color) + 1;
-                }
-            }
-
-            foreach (var (color, count) in requiredMana)
-            {
-                if (manaPool.GetValueOrDefault(color) < count)
-                    return false;
-            }
-
-            var totalMana = manaPool.Values.Sum();
-            var specificManaUsed = requiredMana.Values.Sum();
-            return totalMana - specificManaUsed >= genericMana;
-        }
-
-
-        private void DeductManaCost(Dictionary<string, int> manaPool, string manaCost)
-        {
-            if (string.IsNullOrEmpty(manaCost))
-                return;
-
-            var requiredMana = new Dictionary<string, int>();
-            var genericMana = 0;
-
-            foreach (var c in manaCost.Replace("{", "").Split('}'))
-            {
-                if (string.IsNullOrEmpty(c)) continue;
-                if (int.TryParse(c, out int value))
-                    genericMana += value;
-                else
-                {
-                    string color;
-                    switch (c)
-                    {
-                        case "W": color = "White"; break;
-                        case "U": color = "Blue"; break;
-                        case "B": color = "Black"; break;
-                        case "R": color = "Red"; break;
-                        case "G": color = "Green"; break;
-                        case "C": color = "Colorless"; break;
-                        default: throw new InvalidOperationException($"Unknown mana color: {c}");
-                    }
-                    requiredMana[color] = requiredMana.GetValueOrDefault(color) + 1;
-                }
-            }
-
-            foreach (var (color, count) in requiredMana)
-            {
-                manaPool[color] -= count;
-                if (manaPool[color] < 0)
-                    throw new InvalidOperationException("Insufficient mana");
-            }
-
-            var totalMana = manaPool.Values.Sum();
-            if (totalMana < genericMana)
-                throw new InvalidOperationException("Insufficient generic mana");
-
-            foreach (var color in manaPool.Keys.ToList())
-            {
-                if (genericMana <= 0) break;
-                var deduct = Math.Min(manaPool[color], genericMana);
-                manaPool[color] -= deduct;
-                genericMana -= deduct;
-            }
-        }
         public bool IsBlockPhase(GameSession session, string playerId)
-        {
-            return session.CurrentPhase == Phase.Combat && session.ActivePlayerId != playerId;
-        }
+            => session.CurrentPhase == Phase.Combat && session.ActivePlayerId != playerId;
 
         public async Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
         {
             if (!IsBlockPhase(session, playerId))
-                throw new InvalidOperationException("Ce n’est pas la phase de blocage.");
+                throw new InvalidOperationException("Not in Block phase");
 
             var battlefieldKey = $"{playerId}_battlefield";
 
@@ -412,22 +395,22 @@ namespace GameMicroservice.Application.UseCases
             {
                 var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardName == blocker);
                 if (blockerCard == null)
-                    throw new InvalidOperationException($"Le bloqueur {blocker} n’est pas sur le champ de bataille.");
+                    throw new InvalidOperationException($"Blocker {blocker} not on battlefield");
                 if (blockerCard.IsTapped)
-                    throw new InvalidOperationException($"Le bloqueur {blocker} est engagé.");
+                    throw new InvalidOperationException($"Blocker {blocker} is tapped");
 
-                // Vérifie que c’est bien une créature
-                var blockerDetails = await _cardClient.GetCardByNameAsync(blocker);
-                if (blockerDetails?.TypeLine == null || !blockerDetails.TypeLine.Contains("Creature"))
-                    throw new InvalidOperationException($"Le bloqueur {blocker} n’est pas une créature.");
+                var details = await _cardClient.GetCardByNameAsync(blocker)
+                    ?? throw new KeyNotFoundException("Blocker not found");
+                if (details.TypeLine == null || !details.TypeLine.Contains("Creature"))
+                    throw new InvalidOperationException($"Blocker {blocker} is not a creature");
             }
         }
 
         public Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
         {
+            // For now delegate to ResolveCombatAsync in game flow; keep API compliant
             return Task.FromResult(session);
         }
-
 
         public async Task<GameSession> DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard, Dictionary<string, string> blockers)
         {
@@ -443,10 +426,9 @@ namespace GameMicroservice.Application.UseCases
 
                 if (attacker == null || blocker == null) continue;
 
-                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerId) ?? throw new InvalidOperationException("Attaquant introuvable");
-                var blockerDetails = await _cardClient.GetCardByNameAsync(blockerId) ?? throw new InvalidOperationException("Bloqueur introuvable");
+                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerId) ?? throw new InvalidOperationException("Attacker not found");
+                var blockerDetails = await _cardClient.GetCardByNameAsync(blockerId) ?? throw new InvalidOperationException("Blocker not found");
 
-                // Échanges de dégâts
                 if ((attackerDetails.Power ?? 0) >= (blockerDetails.Toughness ?? int.MaxValue))
                 {
                     session.Zones[$"{playerId}_battlefield"].Remove(blocker);
@@ -458,7 +440,26 @@ namespace GameMicroservice.Application.UseCases
                     session.Zones[$"{opponentId}_graveyard"].Add(attacker);
                 }
             }
+
             return session;
+        }
+
+        #endregion
+
+        #region Load / Save / Endgame
+
+        public async Task<GameSession> LoadSessionAsync(string sessionId)
+        {
+            var session = await _gameSessionRepository.GetByIdAsync(sessionId)
+                ?? throw new InvalidOperationException($"Session {sessionId} not found");
+            return session;
+        }
+
+        public async Task SaveSessionAsync(GameSession session)
+        {
+            if (session == null)
+                throw new ArgumentNullException(nameof(session));
+            await _gameSessionRepository.UpdateAsync(session);
         }
 
         public EndGameDto? CheckEndGame(GameSession session)
@@ -474,7 +475,6 @@ namespace GameMicroservice.Application.UseCases
                 };
             }
 
-            // Défaite par bibliothèque vide -> pioche impossible
             foreach (var player in session.Players)
             {
                 var libraryKey = $"{player.PlayerId}_library";
@@ -491,5 +491,148 @@ namespace GameMicroservice.Application.UseCases
 
             return null;
         }
+
+        #endregion
+
+        #region Mana parsing & helpers
+
+        // Parse mana cost into a dictionary of required symbols:
+        // keys: "White","Blue","Black","Red","Green","Colorless","GENERIC"
+        // Accept formats like "{G}{G}", "{3}{G}", "2GG", etc.
+        private Dictionary<string, int> ParseManaCost(string manaCost)
+        {
+            var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(manaCost))
+                return dict;
+
+            // If braces format present -> parse tokens inside braces
+            if (manaCost.Contains("{"))
+            {
+                int i = 0;
+                while (i < manaCost.Length)
+                {
+                    if (manaCost[i] == '{')
+                    {
+                        int j = manaCost.IndexOf('}', i + 1);
+                        if (j < 0) break;
+                        var token = manaCost.Substring(i + 1, j - i - 1);
+                        if (int.TryParse(token, out int num)) dict["GENERIC"] = dict.GetValueOrDefault("GENERIC", 0) + num;
+                        else
+                        {
+                            string color = token switch
+                            {
+                                "W" => "White",
+                                "U" => "Blue",
+                                "B" => "Black",
+                                "R" => "Red",
+                                "G" => "Green",
+                                "C" => "Colorless",
+                                _ => throw new InvalidOperationException($"Unknown mana symbol: {token}")
+                            };
+                            dict[color] = dict.GetValueOrDefault(color, 0) + 1;
+                        }
+                        i = j + 1;
+                    }
+                    else i++;
+                }
+            }
+            else
+            {
+                // fallback for compact strings like "2GG" or "3G"
+                int i = 0;
+                while (i < manaCost.Length)
+                {
+                    if (char.IsDigit(manaCost[i]))
+                    {
+                        int j = i;
+                        while (j < manaCost.Length && char.IsDigit(manaCost[j])) j++;
+                        var num = int.Parse(manaCost.Substring(i, j - i));
+                        dict["GENERIC"] = dict.GetValueOrDefault("GENERIC", 0) + num;
+                        i = j;
+                    }
+                    else
+                    {
+                        var symbol = manaCost[i].ToString().ToUpper();
+                        string color = symbol switch
+                        {
+                            "W" => "White",
+                            "U" => "Blue",
+                            "B" => "Black",
+                            "R" => "Red",
+                            "G" => "Green",
+                            "C" => "Colorless",
+                            _ => throw new InvalidOperationException($"Unknown mana symbol: {symbol}")
+                        };
+                        dict[color] = dict.GetValueOrDefault(color, 0) + 1;
+                        i++;
+                    }
+                }
+            }
+
+            return dict;
+        }
+
+        private bool CanPayManaCost(Dictionary<string, int> manaPool, string manaCost)
+        {
+            if (string.IsNullOrEmpty(manaCost))
+                return true;
+
+            var required = ParseManaCost(manaCost);
+
+            // check colored requirements first
+            foreach (var kvp in required.Where(k => !string.Equals(k.Key, "GENERIC", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (manaPool.GetValueOrDefault(kvp.Key) < kvp.Value)
+                    return false;
+            }
+
+            // check generic: total mana available minus colored used must be >= generic
+            var generic = required.GetValueOrDefault("GENERIC", 0);
+            var totalAvailable = manaPool.Values.Sum();
+            var coloredUsed = required.Where(k => !string.Equals(k.Key, "GENERIC", StringComparison.OrdinalIgnoreCase)).Sum(k => k.Value);
+            return totalAvailable - coloredUsed >= generic;
+        }
+
+        private void DeductManaCost(Dictionary<string, int> manaPool, string manaCost)
+        {
+            if (string.IsNullOrEmpty(manaCost))
+                return;
+
+            var required = ParseManaCost(manaCost);
+
+            // Deduct colored mana first
+            foreach (var kvp in required.Where(k => !string.Equals(k.Key, "GENERIC", StringComparison.OrdinalIgnoreCase)))
+            {
+                var color = kvp.Key;
+                var need = kvp.Value;
+                if (!manaPool.ContainsKey(color) || manaPool[color] < need)
+                    throw new InvalidOperationException($"Insufficient {color} mana");
+                manaPool[color] -= need;
+            }
+
+            // Deduct generic from any remaining mana (deterministic order)
+            var generic = required.GetValueOrDefault("GENERIC", 0);
+            var consumeOrder = new[] { "White", "Blue", "Black", "Red", "Green", "Colorless" }
+                .Where(k => manaPool.ContainsKey(k)).ToList();
+
+            foreach (var color in consumeOrder)
+            {
+                if (generic <= 0) break;
+                var use = Math.Min(manaPool[color], generic);
+                manaPool[color] -= use;
+                generic -= use;
+            }
+
+            if (generic > 0)
+                throw new InvalidOperationException("Insufficient generic mana");
+        }
+
+        private int TotalManaCost(string manaCost)
+        {
+            var parsed = ParseManaCost(manaCost);
+            return parsed.Values.Sum();
+        }
+
+        #endregion
     }
 }
