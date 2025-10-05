@@ -70,33 +70,45 @@ namespace AuthMicroservice.Infrastructure.Security
 
         public async Task<JwtResponse?> RefreshTokenAsync(string refreshToken)
         {
+            // Vérifier que le refresh token existe et est valide
             var existing = await _refreshRepo.GetByTokenAsync(refreshToken);
-            if (existing == null || existing.IsRevoked || existing.ExpiresAt <= DateTime.UtcNow)
+            if (existing == null || existing.ExpiresAt < DateTime.UtcNow)
                 return null;
 
-            // Revoke old
-            await _refreshRepo.InvalidateAsync(refreshToken);
+            // Récupérer l'utilisateur lié
+            var user = await _userRepo.GetByIdAsync(existing.UserId);
+            if (user == null)
+                return null;
 
-            // Issue new tokens
-            var roles = await _userRepo.GetRolesAsync(existing.UserId);
-            var newAccess = _jwtService.GenerateToken(existing.UserId, new List<string>(roles));
-            var newExpires = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpiryMinutes);
-            var newRefresh = GenerateSecureToken();
-            var refreshEnt = new RefreshToken
+            // Récupérer les rôles de l’utilisateur
+            var roles = await _userRepo.GetRolesAsync(user.Id);
+
+            // Générer un nouveau JWT access token
+            var newAccess = _jwtService.GenerateToken(user.Id, new List<string>(roles));
+            var newExpires = DateTime.UtcNow.AddMinutes(60);
+
+            // Générer un nouveau refresh token
+            var newRefresh = Guid.NewGuid().ToString("N");
+            await _refreshRepo.CreateAsync(new RefreshToken
             {
                 Token = newRefresh,
-                UserId = existing.UserId,
-                ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenTtlDays)
-            };
-            await _refreshRepo.CreateAsync(refreshEnt);
+                UserId = user.Id,
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
+            });
 
+            // Invalider l'ancien refresh token
+            await _refreshRepo.InvalidateAsync(refreshToken);
+
+            //  Retourner une réponse complète avec UserId
             return new JwtResponse
             {
                 AccessToken = newAccess,
                 RefreshToken = newRefresh,
-                ExpiresAt = newExpires
+                ExpiresAt = newExpires,
+                UserId = user.Id   
             };
         }
+
 
         public async Task LogoutAsync(string refreshToken)
         {
