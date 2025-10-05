@@ -30,6 +30,8 @@ namespace GameMicroservice.Application.UseCases
 
         public GameSession DrawStep(GameSession s, string playerId)
         {
+            Console.WriteLine($"[GameRulesEngine] >>> Entrée DrawStep: Phase={s.CurrentPhase}, Player={playerId}, Library={s.Zones[$"{playerId}_library"].Count}, Hand={s.Zones[$"{playerId}_hand"].Count}");
+
             if (s.CurrentPhase != Phase.Draw)
                 throw new InvalidOperationException("Not in Draw phase");
             if (HasDrawnThisTurn(s, playerId))
@@ -47,6 +49,7 @@ namespace GameMicroservice.Application.UseCases
             var player = s.Players.First(p => p.PlayerId == playerId);
             player.HasDrawnThisTurn = true;
             s.CurrentPhase = Phase.Main;
+            Console.WriteLine($"[GameRulesEngine] <<< Sortie DrawStep: Carte={card.CardName}, NewPhase={s.CurrentPhase}, Library={s.Zones[libraryKey].Count}, Hand={s.Zones[handKey].Count}");
 
             return s;
         }
@@ -56,14 +59,14 @@ namespace GameMicroservice.Application.UseCases
             return s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId && s.Players.First(p => p.PlayerId == playerId).LandsPlayedThisTurn < 1;
         }
 
-        public async Task ValidatePlayLandAsync(GameSession s, string playerId, string cardId)
+        public async Task ValidatePlayLandAsync(GameSession s, string playerId, string cardName)
         {
             if (!IsLandPhase(s, playerId))
                 throw new InvalidOperationException("Cannot play land now");
             var handKey = $"{playerId}_hand";
-            if (!s.Zones[handKey].Any(c => c.CardId == cardId))
+            if (!s.Zones[handKey].Any(c => c.CardName == cardName))
                 throw new InvalidOperationException("Card not in hand");
-            var card = await _cardClient.GetCardByIdAsync(cardId)
+            var card = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
             if (!card.TypeLine.Contains("Land"))
                 throw new InvalidOperationException("Card is not a land");
@@ -73,12 +76,12 @@ namespace GameMicroservice.Application.UseCases
                 throw new InvalidOperationException("Only one land per turn allowed");
         }
 
-        public GameSession PlayLand(GameSession s, string playerId, string cardId)
+        public GameSession PlayLand(GameSession s, string playerId, string cardName)
         {
             var handKey = $"{playerId}_hand";
             var battlefieldKey = $"{playerId}_battlefield";
 
-            var card = s.Zones[handKey].FirstOrDefault(c => c.CardId == cardId)
+            var card = s.Zones[handKey].FirstOrDefault(c => c.CardName == cardName)
                 ?? throw new InvalidOperationException("Card not found in hand");
 
             s.Zones[handKey].Remove(card);
@@ -87,10 +90,10 @@ namespace GameMicroservice.Application.UseCases
             var player = s.Players.First(p => p.PlayerId == playerId);
             player.LandsPlayedThisTurn++;
 
-            return OnLandfall(s, playerId, cardId);
+            return OnLandfall(s, playerId, cardName);
         }
 
-        public GameSession OnLandfall(GameSession s, string playerId, string cardId)
+        public GameSession OnLandfall(GameSession s, string playerId, string cardName)
         {
             var player = s.Players.First(p => p.PlayerId == playerId);
             player.ManaPool["Colorless"] = player.ManaPool.GetValueOrDefault("Colorless", 0) + 1;
@@ -102,32 +105,33 @@ namespace GameMicroservice.Application.UseCases
             return s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId;
         }
 
-        public async Task ValidatePlayAsync(GameSession s, string playerId, string cardId)
+        public async Task ValidatePlayAsync(GameSession s, string playerId, string cardName)
         {
             if (!IsMainPhase(s, playerId))
                 throw new InvalidOperationException("Not in Main phase");
             var handKey = $"{playerId}_hand";
-            if (!s.Zones[handKey].Any(c => c.CardId == cardId))
+            if (!s.Zones[handKey].Any(c => c.CardName == cardName))
                 throw new InvalidOperationException("Card not in hand");
 
-            var card = await _cardClient.GetCardByIdAsync(cardId)
+            var card = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
             if (!CanPayManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, card.ManaCost))
                 throw new InvalidOperationException("Insufficient mana to cast this card");
         }
 
-        public async Task<GameSession> PlayCardAsync(GameSession s, string playerId, string cardId)
+        public async Task<GameSession> PlayCardAsync(GameSession s, string playerId, string cardName)
         {
-            await ValidatePlayAsync(s, playerId, cardId);
+            await ValidatePlayAsync(s, playerId, cardName);
             var handKey = $"{playerId}_hand";
             var battlefieldKey = $"{playerId}_battlefield";
-            var cardInHand = s.Zones[handKey].First(c => c.CardId == cardId);
+            var cardInHand = s.Zones[handKey].First(c => c.CardName == cardName);
             if (cardInHand == null)
                 throw new InvalidOperationException("Card not found in hand");
             s.Zones[handKey].Remove(cardInHand);
-            s.Zones[battlefieldKey].Add(new CardInGame(cardId));
+            var cardOnBattlefield = new CardInGame(cardName) { HasSummoningSickness = true };
+            s.Zones[battlefieldKey].Add(cardOnBattlefield);
 
-            var card = await _cardClient.GetCardByIdAsync(cardId)
+            var card = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
             DeductManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, card.ManaCost);
             return s;
@@ -138,15 +142,15 @@ namespace GameMicroservice.Application.UseCases
             return s.CurrentPhase == Phase.Main || s.CurrentPhase == Phase.Combat;
         }
 
-        public async Task ValidateInstantAsync(GameSession s, string playerId, string cardId)
+        public async Task ValidateInstantAsync(GameSession s, string playerId, string cardName)
         {
             if (!IsSpellPhase(s, playerId))
                 throw new InvalidOperationException("Cannot cast instant now");
             var handKey = $"{playerId}_hand";
-            if (!s.Zones[handKey].Any(c => c.CardId == cardId))
+            if (!s.Zones[handKey].Any(c => c.CardName == cardName))
                 throw new InvalidOperationException("Card not in hand");
 
-            var card = await _cardClient.GetCardByIdAsync(cardId)
+            var card = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
             if (!card.TypeLine.Contains("Instant"))
                 throw new InvalidOperationException("Card is not an instant");
@@ -155,16 +159,17 @@ namespace GameMicroservice.Application.UseCases
                 throw new InvalidOperationException("Insufficient mana to cast this instant");
         }
 
-        public async Task<GameSession> CastInstantAsync(GameSession s, string playerId, string cardId, string? targetId)
+        public async Task<GameSession> CastInstantAsync(GameSession s, string playerId, string cardName, string? targetId)
         {
-            await ValidateInstantAsync(s, playerId, cardId);
+            await ValidateInstantAsync(s, playerId, cardName);
             var handKey = $"{playerId}_hand";
             var battlefieldKey = $"{playerId}_battlefield";
-            var cardInHand = s.Zones[handKey].First(c => c.CardId == cardId);
+            var cardInHand = s.Zones[handKey].First(c => c.CardName == cardName);
             s.Zones[handKey].Remove(cardInHand);
-            s.Zones[battlefieldKey].Add(new CardInGame(cardId));
+            var cardOnBattlefield = new CardInGame(cardName) { HasSummoningSickness = true };
+            s.Zones[battlefieldKey].Add(cardOnBattlefield);
 
-            var card = await _cardClient.GetCardByIdAsync(cardId)
+            var card = await _cardClient.GetCardByNameAsync(cardName)
                 ?? throw new KeyNotFoundException("Card not found");
             DeductManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, card.ManaCost);
             return s;
@@ -188,17 +193,17 @@ namespace GameMicroservice.Application.UseCases
             if (!IsCombatPhase(s, playerId))
                 throw new InvalidOperationException("Not in Combat phase");
             var battlefieldKey = $"{playerId}_battlefield";
-            foreach (var cardId in attackers)
+            foreach (var cardName in attackers)
             {
-                var cardInGame = s.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == cardId)
-                    ?? throw new InvalidOperationException($"Card {cardId} not on battlefield");
+                var cardInGame = s.Zones[battlefieldKey].FirstOrDefault(c => c.CardName == cardName)
+                    ?? throw new InvalidOperationException($"Card {cardName} not on battlefield");
                 if (cardInGame.IsTapped || cardInGame.HasSummoningSickness)
-                    throw new InvalidOperationException($"Card {cardId} cannot attack");
+                    throw new InvalidOperationException($"Card {cardName} cannot attack");
                 // Validation asynchrone : vérifier que la carte est une créature
-                var cardDetails = await _cardClient.GetCardByIdAsync(cardId)
-                    ?? throw new KeyNotFoundException($"Card {cardId} not found");
+                var cardDetails = await _cardClient.GetCardByNameAsync(cardName)
+                    ?? throw new KeyNotFoundException($"Card {cardName} not found");
                 if (!cardDetails.TypeLine.Contains("Creature"))
-                    throw new InvalidOperationException($"Card {cardId} is not a creature and cannot attack");
+                    throw new InvalidOperationException($"Card {cardName} is not a creature and cannot attack");
             }
         }
 
@@ -212,14 +217,14 @@ namespace GameMicroservice.Application.UseCases
 
             foreach (var blocker in blockers)
             {
-                var blockerCard = s.Zones[opponentBattlefieldKey].FirstOrDefault(c => c.CardId == blocker.Value)
+                var blockerCard = s.Zones[opponentBattlefieldKey].FirstOrDefault(c => c.CardName == blocker.Value)
                     ?? throw new InvalidOperationException($"Blocker {blocker.Value} not on battlefield");
-                var attackerCard = s.Zones[$"{playerId}_battlefield"].FirstOrDefault(c => c.CardId == blocker.Key)
+                var attackerCard = s.Zones[$"{playerId}_battlefield"].FirstOrDefault(c => c.CardName == blocker.Key)
                     ?? throw new InvalidOperationException($"Attacker {blocker.Key} not on battlefield");
 
-                var attackerDetails = await _cardClient.GetCardByIdAsync(blocker.Key)
+                var attackerDetails = await _cardClient.GetCardByNameAsync(blocker.Key)
                     ?? throw new KeyNotFoundException("Attacker card not found");
-                var blockerDetails = await _cardClient.GetCardByIdAsync(blocker.Value)
+                var blockerDetails = await _cardClient.GetCardByNameAsync(blocker.Value)
                     ?? throw new KeyNotFoundException("Blocker card not found");
 
                 if (attackerDetails.Power >= blockerDetails.Toughness)
@@ -238,7 +243,7 @@ namespace GameMicroservice.Application.UseCases
             var opponent = s.Players.First(p => p.PlayerId == opponentId);
             foreach (var attackerId in unblockedAttackers)
             {
-                var attackerDetails = await _cardClient.GetCardByIdAsync(attackerId)
+                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerId)
                     ?? throw new KeyNotFoundException("Attacker card not found");
                 opponent.LifeTotal -= attackerDetails.Power ?? 0;
             }
@@ -405,14 +410,14 @@ namespace GameMicroservice.Application.UseCases
 
             foreach (var blocker in blockers.Values)
             {
-                var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == blocker);
+                var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardName == blocker);
                 if (blockerCard == null)
                     throw new InvalidOperationException($"Le bloqueur {blocker} n’est pas sur le champ de bataille.");
                 if (blockerCard.IsTapped)
                     throw new InvalidOperationException($"Le bloqueur {blocker} est engagé.");
 
                 // Vérifie que c’est bien une créature
-                var blockerDetails = await _cardClient.GetCardByIdAsync(blocker);
+                var blockerDetails = await _cardClient.GetCardByNameAsync(blocker);
                 if (blockerDetails?.TypeLine == null || !blockerDetails.TypeLine.Contains("Creature"))
                     throw new InvalidOperationException($"Le bloqueur {blocker} n’est pas une créature.");
             }
@@ -433,13 +438,13 @@ namespace GameMicroservice.Application.UseCases
                 var attackerId = kvp.Key;
                 var blockerId = kvp.Value;
 
-                var attacker = session.Zones[$"{opponentId}_battlefield"].FirstOrDefault(c => c.CardId == attackerId);
-                var blocker = session.Zones[$"{playerId}_battlefield"].FirstOrDefault(c => c.CardId == blockerId);
+                var attacker = session.Zones[$"{opponentId}_battlefield"].FirstOrDefault(c => c.CardName == attackerId);
+                var blocker = session.Zones[$"{playerId}_battlefield"].FirstOrDefault(c => c.CardName == blockerId);
 
                 if (attacker == null || blocker == null) continue;
 
-                var attackerDetails = await _cardClient.GetCardByIdAsync(attackerId) ?? throw new InvalidOperationException("Attaquant introuvable");
-                var blockerDetails = await _cardClient.GetCardByIdAsync(blockerId) ?? throw new InvalidOperationException("Bloqueur introuvable");
+                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerId) ?? throw new InvalidOperationException("Attaquant introuvable");
+                var blockerDetails = await _cardClient.GetCardByNameAsync(blockerId) ?? throw new InvalidOperationException("Bloqueur introuvable");
 
                 // Échanges de dégâts
                 if ((attackerDetails.Power ?? 0) >= (blockerDetails.Toughness ?? int.MaxValue))
