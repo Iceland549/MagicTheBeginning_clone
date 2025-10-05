@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { startGame, getGameState, playCard } from './gameService';
 import { getAllDecks } from '../decks/deckService';
-import { getAllCards } from '../cards/cardService'; // Ajout
+import { getAllCards } from '../cards/cardService'; 
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import './GameBoard.css';
@@ -16,7 +16,7 @@ export default function GameBoard() {
   const [deckP1, setDeckP1] = useState(null);
   const [deckP2, setDeckP2] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [cardDetails, setCardDetails] = useState({}); // Nouvel état pour les détails des cartes
+  const [cardDetails, setCardDetails] = useState({}); 
   const navigate = useNavigate();
   const playerId = localStorage.getItem('userId');
 
@@ -37,7 +37,7 @@ export default function GameBoard() {
       .then(response => {
         console.log('Cards fetched in GameBoard:', JSON.stringify(response, null, 2));
         const cardMap = response.reduce((map, card) => {
-          map[card.id] = card; // Mapper par ID pour un accès rapide
+          map[card.name] = card; 
           return map;
         }, {});
         setCardDetails(cardMap);
@@ -48,7 +48,7 @@ export default function GameBoard() {
       });
   }, [playerId, navigate]);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!gameId) return;
     setLoading(true);
     try {
@@ -56,10 +56,10 @@ export default function GameBoard() {
       console.log('Game state:', JSON.stringify(response, null, 2));
       setState(response);
     } catch (error) {
-      alert('Erreur lors du rafraîchissement de l’état du jeu');
+      alert('Erreur lors du rafraîchissement de létat du jeu');
     }
     setLoading(false);
-  };
+  }, [gameId]);
 
   const init = async () => {
     if (!deckP1 || !deckP2) {
@@ -83,31 +83,35 @@ export default function GameBoard() {
     setLoading(false);
   };
 
-const onPlay = async (cardId, actionType = 'PlayCard') => {
-  if (!gameId || !playerId) {
-    console.error(`Invalid parameters: gameId=${gameId}, playerId=${playerId}`);
-    alert('Erreur : paramètres manquants.');
-    return;
-  }
+  const onPlay = async (cardName, actionType = 'PlayCard') => {
+      console.log('=== ON PLAY ===');
+      console.log('Current Phase:', state?.currentPhase);
+      console.log('Action Type:', actionType);
+      console.log('Card Name:', cardName);
+    if (!gameId || !playerId) {
+      console.error(`Invalid parameters: gameId=${gameId}, playerId=${playerId}`);
+      alert('Erreur : paramètres manquants.');
+      return;
+    }
 
-  if (['PlayCard', 'PlayLand'].includes(actionType) && !cardId) {
-    console.error(`Invalid cardId for actionType=${actionType}`);
-    alert('Erreur : aucune carte sélectionnée.');
-    return;
-  }
+    if (['PlayCard', 'PlayLand'].includes(actionType) && !cardName) {
+      console.error(`Invalid cardName for actionType=${actionType}`);
+      alert('Erreur : aucune carte sélectionnée.');
+      return;
+    }
 
-  setLoading(true);
-  try {
-    const playData = { PlayerId: playerId, Type: actionType };
-    console.log('Sending playData:', JSON.stringify(playData, null, 2));
-    await playCard(gameId, playData);
-    await refresh();
-  } catch (error) {
-    console.error('Erreur lors de l’action:', error);
-    alert('Erreur lors de l’action : ' + (error.message || ''));
-  }
-  setLoading(false);
-};
+    setLoading(true);
+    try {
+      const playData = { PlayerId: playerId, CardName: cardName ?? null, Type: actionType };
+      console.log('Sending playData:', JSON.stringify(playData, null, 2));
+      await playCard(gameId, playData);
+      await refresh();
+    } catch (error) {
+      console.error('Erreur lors de laction:', error);
+      alert('Erreur lors de laction : ' + (error.message || ''));
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (state && state.activePlayerId === state.playerTwoId) {
@@ -116,7 +120,8 @@ const onPlay = async (cardId, actionType = 'PlayCard') => {
         .then(() => refresh())
         .catch(() => setLoading(false));
     }
-  }, [state?.activePlayerId, gameId]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.activePlayerId, gameId, state?.playerTwoId, refresh]);
 
   const availableDecks = decks.filter(
     d => (!deckP1 || d.id !== deckP1.id) && (!deckP2 || d.id !== deckP2.id)
@@ -124,6 +129,11 @@ const onPlay = async (cardId, actionType = 'PlayCard') => {
 
   const buildActions = () => {
     if (!state || state.activePlayerId !== playerId) return [];
+
+    console.log('=== BUILD ACTIONS ===');
+    console.log('Current Phase:', state.currentPhase);
+    console.log('Active Player:', state.activePlayerId);
+    console.log('Player ID:', playerId);
 
     const hand = state.zones[`${playerId}_hand`] || [];
     const landCards = hand.filter(c => c.typeLine?.includes('Land'));
@@ -133,24 +143,26 @@ const onPlay = async (cardId, actionType = 'PlayCard') => {
 
     switch (state.currentPhase) {
       case 'Draw':
-        actions.push({ label: 'Piocher une carte', type: 'Draw' });
-        actions.push({ label: 'Aller en phase principale', type: 'PassToMain' });
+        console.log('-> Adding Draw actions');
+        actions.push({ label: 'Continuer', type: 'Draw' });
+
         break;
 
       case 'Main':
+        console.log('-> Adding Main phase actions');
         landCards.forEach(card => {
           actions.push({
-            label: `Jouer Terrain: ${card.cardId}`,
+            label: `Jouer Terrain: ${card.cardName}`,
             type: 'PlayLand',
-            cardId: card.cardId
+            cardName: card.cardName
           });
         });
 
         spellCards.forEach(card => {
           actions.push({
-            label: `Jouer Sort: ${card.cardId}`,
+            label: `Jouer Sort: ${card.cardName}`,
             type: 'PlayCard',
-            cardId: card.cardId
+            cardName: card.cardName
           });
         });
 
@@ -159,18 +171,21 @@ const onPlay = async (cardId, actionType = 'PlayCard') => {
         break;
 
       case 'Combat':
+        console.log('-> Adding Combat actions');
         actions.push({ label: 'Fin de combat', type: 'PreEnd' });
         break;
 
       case 'End':
+        console.log('-> Adding End phase actions');
         actions.push({ label: 'Finir le tour', type: 'EndTurn' });
         break;
 
       default:
+        console.warn('Unknown phase:', state.currentPhase);
         break;
-      }
+    }
 
-
+    console.log('Actions generated:', actions);
     return actions;
   };
 
@@ -179,15 +194,46 @@ const onPlay = async (cardId, actionType = 'PlayCard') => {
     ? Object.keys(state.zones).reduce((acc, zoneKey) => {
         acc[zoneKey] = state.zones[zoneKey].map(card => ({
           ...card,
-          imageUrl: cardDetails[card.cardId]?.imageUrl || card.imageUrl || 'https://via.placeholder.com/100'
+          imageUrl: cardDetails[card.cardName]?.imageUrl || card.imageUrl || 'https://via.placeholder.com/100'
         }));
         return acc;
       }, {})
     : {};
 
   const handleAction = async (action) => {
-    await onPlay(action.cardId || null, action.type);
+    try {
+      console.log("=== HANDLE ACTION ===");
+      console.log("Action received:", action);
+
+      if (!gameId || !playerId) {
+        console.error("handleAction: gameId or playerId missing");
+        alert("Erreur : paramètres manquants");
+        return;
+      }
+
+      // Cas 1: Actions liées aux cartes (PlayCard, PlayLand)
+      if (["PlayCard", "PlayLand"].includes(action.type)) {
+        if (!action.cardName) {
+          alert(`Erreur : aucune carte sélectionnée pour ${action.type}`);
+          return;
+        }
+        await onPlay(action.cardName, action.type);
+      } 
+      // Cas 2: Actions simples (Draw, EndTurn, PassToCombat, PreEnd)
+      else {
+        const playData = { PlayerId: playerId, CardId: null, Type: action.type };
+        console.log("Sending non-card action:", JSON.stringify(playData, null, 2));
+
+        await playCard(gameId, playData);
+        await refresh();
+      }
+
+    } catch (error) {
+      console.error("Erreur lors de handleAction:", error);
+      alert("Erreur lors de l'action : " + (error.message || "inconnue"));
+    }
   };
+
 
   return (
     <div
@@ -255,7 +301,7 @@ const onPlay = async (cardId, actionType = 'PlayCard') => {
             <div className="magic-board">
               <PlayerZone
                 playerId={state.playerTwoId}
-                zones={enrichedZones} // Utiliser les zones enrichies
+                zones={enrichedZones} 
                 isPlayable={false}
               />
               <div className="center-zone">
@@ -265,9 +311,10 @@ const onPlay = async (cardId, actionType = 'PlayCard') => {
               </div>
               <PlayerZone
                 playerId={playerId}
-                zones={enrichedZones} // Utiliser les zones enrichies
+                zones={enrichedZones} 
                 onPlayCard={onPlay}
-                isPlayable={state.activePlayerId === playerId}
+                isPlayable={state.activePlayerId === playerId && state.currentPhase === 'Main'}
+                currentPhase={state.currentPhase}
               />
               <div className="game-status">
                 <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
@@ -276,7 +323,6 @@ const onPlay = async (cardId, actionType = 'PlayCard') => {
                 <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
               </div>
               <GameActions actions={buildActions()} onAction={handleAction} />
-              {/* <button className="btn" onClick={refresh} disabled={loading}>Rafraîchir</button> */}
               {loading && <div>Chargement...</div>}
             </div>
           </>
