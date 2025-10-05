@@ -24,9 +24,9 @@ namespace GameMicroservice.Application.UseCases
 
             var handKey = $"{playerId}_hand";
             var graveyardKey = $"{playerId}_graveyard";
-            foreach (var cardId in cardsToDiscard)
+            foreach (var cardName in cardsToDiscard)
             {
-                var card = session.Zones[handKey].FirstOrDefault(c => c.CardId == cardId);
+                var card = session.Zones[handKey].FirstOrDefault(c => c.CardName == cardName);
                 if (card != null)
                 {
                     session.Zones[handKey].Remove(card);

@@ -17,7 +17,7 @@ namespace GameMicroservice.Application.UseCases
             _mapper = mapper;
         }
 
-        public async Task<ActionResultDto> ExecuteAsync(string sessionId, string playerId, string cardId)
+        public async Task<ActionResultDto> ExecuteAsync(string sessionId, string playerId, string cardName)
         {
             var session = await _repo.GetByIdAsync(sessionId);
             if (session == null)
@@ -26,8 +26,8 @@ namespace GameMicroservice.Application.UseCases
             if (!_engine.IsLandPhase(session, playerId))
                 return new ActionResultDto { Success = false, Message = "Pas la phase de terrain" };
 
-            await _engine.ValidatePlayLandAsync(session, playerId, cardId);
-            session = _engine.PlayLand(session, playerId, cardId);
+            await _engine.ValidatePlayLandAsync(session, playerId, cardName);
+            session = _engine.PlayLand(session, playerId, cardName);
             await _repo.UpdateAsync(session);
 
             return new ActionResultDto

@@ -4,6 +4,6 @@ namespace GameMicroservice.Infrastructure
 {
     public interface ICardClient
     {
-        Task<CardDto?> GetCardByIdAsync(string cardId);
+        Task<CardDto?> GetCardByNameAsync(string cardName);
     }
 }

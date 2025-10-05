@@ -7,8 +7,8 @@ namespace GameMicroservice.Application.DTOs
     /// </summary>
     public class CardInGameDto
     {
-        [JsonPropertyName("cardId")]
-        public string CardId { get; set; } = null!;
+        [JsonPropertyName("cardName")]
+        public string CardName { get; set; } = null!;
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = null!;

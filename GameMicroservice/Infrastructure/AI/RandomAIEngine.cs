@@ -18,7 +18,7 @@ namespace GameMicroservice.Infrastructure.AI
                 {
                     PlayerId = aiState.PlayerId,
                     Type = ActionType.PlayLand,
-                    CardId = land.CardId
+                    CardName = land.CardName
                 };
             }
 
@@ -30,7 +30,7 @@ namespace GameMicroservice.Infrastructure.AI
                 {
                     PlayerId = aiState.PlayerId,
                     Type = ActionType.PlayCard,
-                    CardId = spell.CardId
+                    CardName = spell.CardName
                 };
             }
 

@@ -26,6 +26,7 @@ namespace GameMicroservice.Application.UseCases
         {
             if (action == null)
                 return new ActionResultDto { Success = false, Message = "Action manquante" };
+            Console.WriteLine($"PlayCardUseCase.ExecuteAsync - session:{sessionId}, player:{playerId}, action:{System.Text.Json.JsonSerializer.Serialize(action)}");
 
             var sessionEntity = await _repo.GetByIdAsync(sessionId);
             if (sessionEntity == null)
@@ -38,32 +39,32 @@ namespace GameMicroservice.Application.UseCases
                     case ActionType.PlayLand:
                         if (!_engine.IsLandPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Pas la phase de terrain" };
-                        if (string.IsNullOrEmpty(action.CardId))
-                            return new ActionResultDto { Success = false, Message = "CardId requis pour PlayLand" };
+                        if (string.IsNullOrEmpty(action.CardName))
+                            return new ActionResultDto { Success = false, Message = "CardName requis pour PlayLand" };
 
-                        await _engine.ValidatePlayLandAsync(sessionEntity, playerId, action.CardId);
-                        sessionEntity = _engine.PlayLand(sessionEntity, playerId, action.CardId);
-                        sessionEntity = _engine.OnLandfall(sessionEntity, playerId, action.CardId);
+                        await _engine.ValidatePlayLandAsync(sessionEntity, playerId, action.CardName);
+                        sessionEntity = _engine.PlayLand(sessionEntity, playerId, action.CardName);
+                        sessionEntity = _engine.OnLandfall(sessionEntity, playerId, action.CardName);
                         break;
 
                     case ActionType.PlayCard:
                         if (!_engine.IsMainPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Pas la phase principale" };
-                        if (string.IsNullOrEmpty(action.CardId))
-                            return new ActionResultDto { Success = false, Message = "CardId requis pour PlayCard" };
+                        if (string.IsNullOrEmpty(action.CardName))
+                            return new ActionResultDto { Success = false, Message = "CardName requis pour PlayCard" };
 
-                        await _engine.ValidatePlayAsync(sessionEntity, playerId, action.CardId);
-                        sessionEntity = await _engine.PlayCardAsync(sessionEntity, playerId, action.CardId);
+                        await _engine.ValidatePlayAsync(sessionEntity, playerId, action.CardName);
+                        sessionEntity = await _engine.PlayCardAsync(sessionEntity, playerId, action.CardName);
                         break;
 
                     case ActionType.CastInstant:
                         if (!_engine.IsSpellPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Pas la phase de sorts" };
-                        if (string.IsNullOrEmpty(action.CardId))
-                            return new ActionResultDto { Success = false, Message = "CardId requis pour CastInstant" };
+                        if (string.IsNullOrEmpty(action.CardName))
+                            return new ActionResultDto { Success = false, Message = "CardName requis pour CastInstant" };
 
-                        await _engine.ValidateInstantAsync(sessionEntity, playerId, action.CardId);
-                        sessionEntity = await _engine.CastInstantAsync(sessionEntity, playerId, action.CardId, action.TargetId);
+                        await _engine.ValidateInstantAsync(sessionEntity, playerId, action.CardName);
+                        sessionEntity = await _engine.CastInstantAsync(sessionEntity, playerId, action.CardName, action.TargetId);
                         break;
 
                     case ActionType.PassToCombat:
@@ -119,7 +120,6 @@ namespace GameMicroservice.Application.UseCases
                         return new ActionResultDto { Success = false, Message = $"Action inconnue : {action.Type}" };
                 }
 
-                // Vérification de la fin de partie
                 var endGame = _engine.CheckEndGame(sessionEntity);
                 await _repo.UpdateAsync(sessionEntity);
 

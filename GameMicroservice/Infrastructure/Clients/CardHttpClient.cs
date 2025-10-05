@@ -56,11 +56,11 @@ namespace GameMicroservice.Infrastructure
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
-        public async Task<CardDto?> GetCardByIdAsync(string cardId)
+        public async Task<CardDto?> GetCardByNameAsync(string cardName)
         {
             await AddAuthHeaderAsync();
-            var response = await _client.GetAsync($"/api/cards/{cardId}");
-            Console.WriteLine($"Response for card {cardId}: {response.StatusCode}");
+            var response = await _client.GetAsync($"/api/cards/{cardName}");
+            Console.WriteLine($"Response for card {cardName}: {response.StatusCode}");
             if (!response.IsSuccessStatusCode)
             {
                 Console.WriteLine($"Error: {await response.Content.ReadAsStringAsync()}");
