@@ -35,7 +35,9 @@ namespace AuthMicroservice.Application.UseCases
 
             var claims = new List<Claim>
               {
-                  new Claim("client_id", client.ClientId)
+                  new Claim("client_id", client.ClientId),
+                  new Claim(JwtRegisteredClaimNames.Sub, client.ClientId)
+
               };
 
             foreach (var scope in client.AllowedScopes.Split(',', StringSplitOptions.RemoveEmptyEntries))

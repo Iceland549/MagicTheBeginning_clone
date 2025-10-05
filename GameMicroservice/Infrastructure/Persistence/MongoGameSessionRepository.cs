@@ -110,7 +110,7 @@ namespace GameMicroservice.Infrastructure.Persistence
                                 Power = details.Power,
                                 Toughness = details.Toughness,
                                 IsTapped = false,
-                                HasSummoningSickness = true
+                                HasSummoningSickness = false
                             });
                         }
                         library.RemoveAt(0);
