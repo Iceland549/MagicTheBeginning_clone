@@ -61,8 +61,8 @@ export default function DeckBuilder() {
     let landCount = 0;
     for (const card of selection) {
       const quantity = card.quantity || 1;
-      console.log(`Checking card: ${card.name}, ID: ${card.id}, Quantity: ${quantity}, TypeLine: ${card.type_line || 'undefined'}`);
-      const isLand = card.type_line && card.type_line.toLowerCase().includes('land');
+      console.log(`Checking card: ${card.name}, ID: ${card.id}, Quantity: ${quantity}, TypeLine: ${card.typeLine || 'undefined'}`);
+      const isLand = card.typeLine && card.typeLine.toLowerCase().includes('land');
       if (quantity > 4 && !isLand) {
         return { isValid: false, error: `La carte ${card.name} dépasse la limite de 4 exemplaires (actuellement ${quantity})` };
       }
