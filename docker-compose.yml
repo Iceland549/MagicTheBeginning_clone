@@ -37,13 +37,7 @@ services:
       - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
       - Admin__Email=admin@mtb.local
       - Admin__Password=AdminP@ssw0rd!
-      - Smtp__Host=smtp.example.com
-      - Smtp__Port=587
-      - Smtp__EnableSsl=true
-      - Smtp__User=no-reply@example.com
-      - Smtp__Password=SuperSecretSMTPpw
-      - Smtp__From=no-reply@example.com
-      - Smtp__FrontendUrl=http://localhost:5005
+
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -97,12 +91,16 @@ services:
       dockerfile: DeckMicroservice/Dockerfile
     environment:
       - ASPNETCORE_URLS=http://+:5003
+      - AuthMicroserviceBaseUrl=http://auth:5001
+      - GatewayBaseUrl=http://gateway:5000
+      - DeckServiceClientSecret=SuperSecretDeck
       - Mongo__ConnectionString=mongodb://mongo:27017
       - Mongo__Database=magic-db
       - Mongo__DeckCollection=decks
       - Jwt__Issuer=MagicTheBeginning
       - Jwt__Audience=MagicClients
       - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
+
     depends_on:
       - mongo
     ports:
@@ -125,15 +123,18 @@ services:
       dockerfile: GameMicroservice/Dockerfile
     environment:
       - ASPNETCORE_URLS=http://+:5004
+      - AuthMicroserviceBaseUrl=http://auth:5001
       - CardMicroserviceBaseUrl=http://card:5002
       - DeckMicroserviceBaseUrl=http://deck:5003
+      - GatewayBaseUrl=http://gateway:5000
+      - GameServiceClientSecret=SuperSecretGame
       - Jwt__Issuer=MagicTheBeginning
       - Jwt__Audience=MagicClients
       - Jwt__Secret=TaCleSuperSecreteDoitFaireAuMoins32Chars!
       - Mongo__ConnectionString=mongodb://mongo:27017
       - Mongo__Database=magic-db
       - Mongo__GameCollection=games
-      - AuthMicroserviceBaseUrl=http://auth:5001
+
 
     depends_on:
       - mongo
@@ -192,6 +193,5 @@ networks:
   mtb-net:
     driver: bridge
 
-# volumes:
-#   magic-mongo-data:
+
 
