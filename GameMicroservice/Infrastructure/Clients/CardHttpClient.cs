@@ -45,7 +45,7 @@ namespace GameMicroservice.Infrastructure
                 throw new InvalidOperationException("AuthMicroservice did not return a token");
 
             _cachedToken = result.AccessToken;
-            _tokenExpiry = result.ExpiresAt.AddMinutes(-5); // marge pour éviter expiration
+            _tokenExpiry = result.ExpiresAt.AddMinutes(-5); 
             return _cachedToken;
         }
 
