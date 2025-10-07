@@ -28,3 +28,7 @@ export async function importCard(name) {
   const { data } = await api.post(`/cards/import/${encodeURIComponent(name)}`);
   return data;
 }
+
+export async function deleteCardByName(name) {
+  return api.delete(`/cards/name/${encodeURIComponent(name)}`);
+}
