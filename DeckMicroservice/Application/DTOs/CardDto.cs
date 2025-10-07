@@ -10,7 +10,7 @@ namespace DeckMicroservice.Application.DTOs
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        [JsonPropertyName("type_line")]
+        [JsonPropertyName("typeLine")]
         public string TypeLine { get; set; } = string.Empty;
 
         [JsonPropertyName("mana_cost")]
