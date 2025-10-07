@@ -73,7 +73,7 @@ export async function getGameState(gameId) {
 /**
  * Play a card or perform an action in the current game session.
  * @param {string} gameId
- * @param {Object} playData - { cardId, type, targetId, attackers, blockers }
+ * @param {Object} playData - {cardName, type, targetId, attackers, blockers }
  * @returns {Promise} Updated game state
  */
 export async function playCard(gameId, playData) {
@@ -81,16 +81,14 @@ export async function playCard(gameId, playData) {
     if (!playData || typeof playData !== 'object') {
       throw new Error('playData is invalid or empty');
     }
-    // Accept both PascalCase and camelCase to be robust
     const PlayerId = playData.PlayerId || playData.playerId || localStorage.getItem('userId');
     const CardName = playData.CardName || playData.cardName || null;
     const Type = playData.Type || playData.type || null;
     if (!PlayerId || !Type) {
-      throw new Error(`Invalid playData: PlayerId=${PlayerId}, CardId=${CardName}, Type=${Type}`);
+      throw new Error(`Invalid playData: PlayerId=${PlayerId}, CardName=${CardName}, Type=${Type}`);
     }
-    // For PlayCard/PlayLand we must have CardId defined
     if ((Type === 'PlayCard' || Type === 'PlayLand') && !CardName) {
-      throw new Error(`Action ${Type} requires CardId (received: ${CardName})`);
+      throw new Error(`Action ${Type} requires CardName (received: ${CardName})`);
     }
     console.log('Playing action:', JSON.stringify({ PlayerId, CardName, Type }, null, 2));
     const { data } = await api.post(`/games/${gameId}/action`, { PlayerId, CardName, Type });
