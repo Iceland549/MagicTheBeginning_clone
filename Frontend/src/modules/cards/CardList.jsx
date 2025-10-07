@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { fetchCardByName } from './cardService';
 import { useNavigate } from 'react-router-dom';
 import { useSelection } from '../context/selectionContext';
+import CardModal from '../../components/CardModal'; 
+
 
 export default function CardList() {
   const [search, setSearch] = useState('');
@@ -9,7 +11,9 @@ export default function CardList() {
   const [quantity, setQuantity] = useState(1); 
   const [feedback, setFeedback] = useState('');
   const navigate = useNavigate();
-  const { addCard } = useSelection();
+  const { addCard, removeCard } = useSelection();
+  const [selectedCard, setSelectedCard] = useState(null);
+
 
   const handleSearch = async () => {
     if (!search) return;
@@ -57,7 +61,8 @@ export default function CardList() {
                 src={card.imageUrl}
                 alt={card.name}
                 width="200"
-                onError={(e) => console.error('Image failed to load:', card.imageUrl)}
+                onClick={() => setSelectedCard(card)}
+                style={{ cursor: 'pointer' }}
               />
             )}
             <div>
@@ -74,9 +79,19 @@ export default function CardList() {
             <button className="btn" onClick={handleAddToDeck}>
               Ajouter au deck
             </button>
+                  <button
+                    className="btn btn-remove"
+                    onClick={() => {
+                      removeCard(card);
+                      setFeedback(`"${card.name}" a été supprimée du deck.`);
+              }}
+            >
+              Supprimer du deck
+            </button>
           </div>
         )}
       </div>
+      <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
     </div>
   );
 }

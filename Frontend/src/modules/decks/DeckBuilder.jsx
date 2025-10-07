@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; 
 import { getAllCards } from '../cards/cardService';
+import { deleteCardByName } from '../cards/cardService'; 
 import { createDeck, getDecks, validateDeck } from './deckService';
 import { useSelection } from '../context/selectionContext';
 import { CardGrid } from '../cardGrid/CardGrid';
@@ -127,6 +128,16 @@ export default function DeckBuilder() {
     }
   };
 
+  const handleDeleteAvailableCard = async (card) => {
+    try {
+      await deleteCardByName(card.name);
+      setCards(prev => prev.filter(c => c.name !== card.name)); 
+      removeCard(card); 
+    } catch (e) {
+      alert("Erreur lors de la suppression : " + (e.response?.data || e.message));
+    }
+  };
+
   console.log('Current selection:', JSON.stringify(selection, null, 2));
 
   return (
@@ -163,6 +174,7 @@ export default function DeckBuilder() {
           showQuantitySelector={true}
           quantities={quantities}
           setQuantities={setQuantities}
+          onDeleteCard={handleDeleteAvailableCard}
         />
 
         <CardGrid

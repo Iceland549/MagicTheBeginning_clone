@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import CardModal from '../../components/CardModal';
 
 export default function CardView({ card, onPlay, disabled }) {
+  const [selectedCard, setSelectedCard] = useState(null);
+
   console.log("CardView render:", typeof card, card);
 
   if (!card) {
@@ -17,9 +20,16 @@ export default function CardView({ card, onPlay, disabled }) {
       <h4>{card.name || card.cardId || 'Carte sans ID'}</h4>
       <p>{card.typeLine}</p>
       {card.manaCost && <p>Coût : {card.manaCost}</p>}
+
       {card.imageUrl && (
-        <img src={card.imageUrl || 'https://via.placeholder.com/100'} alt={card.name || 'Carte'} style={{ maxWidth: '100px' }} />
+        <img
+          src={card.imageUrl || 'https://via.placeholder.com/100'}
+          alt={card.name || 'Carte'}
+          style={{ maxWidth: '100px', cursor: 'pointer' }}
+          onClick={() => setSelectedCard(card)} // 👈 ouvre la modale
+        />
       )}
+
       {typeof onPlay === 'function' && (
         <button
           onClick={() => {
@@ -35,11 +45,14 @@ export default function CardView({ card, onPlay, disabled }) {
           Jouer
         </button>
       )}
+
       {typeof card.power === 'number' && typeof card.toughness === 'number' && (
         <p>{card.power} / {card.toughness}</p>
       )}
       {card.isTapped && <p style={{ color: 'red' }}>TAP</p>}
       {card.hasSummoningSickness && <p style={{ color: 'orange' }}>Mal d'invocation</p>}
+
+      <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
     </div>
   );
 }
