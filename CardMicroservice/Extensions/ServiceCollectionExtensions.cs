@@ -48,6 +48,7 @@ namespace CardMicroservice.Extensions
             services.AddScoped<GetAllCardsUseCase>();
             services.AddScoped<GetCardByNameUseCase>();
             services.AddScoped<ImportCardUseCase>();
+            services.AddScoped<DeleteCardByNameUseCase>();
 
             return services;
         }

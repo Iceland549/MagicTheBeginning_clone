@@ -13,15 +13,19 @@ namespace CardMicroservice.Presentation.Controllers
         private readonly GetAllCardsUseCase _getAll;
         private readonly GetCardByNameUseCase _getByName;
         private readonly ImportCardUseCase _import;
+        private readonly DeleteCardByNameUseCase _deleteByName;
+
 
         public CardsController(
             GetAllCardsUseCase getAll,
             GetCardByNameUseCase getByName,
-            ImportCardUseCase import)
+            ImportCardUseCase import,
+            DeleteCardByNameUseCase deleteByName)
         {
             _getAll = getAll;
             _getByName = getByName;
             _import = import;
+            _deleteByName = deleteByName;
         }
         [HttpGet]
         public async Task<IEnumerable<CardDto>> GetAll()
@@ -44,6 +48,14 @@ namespace CardMicroservice.Presentation.Controllers
             return card == null
                 ? NotFound($"Card '{name}' not found on Scryfall")
                 : Ok(card);
+        }
+        [HttpDelete("name/{*name}")]
+        public async Task<IActionResult> DeleteByName(string name)
+        {
+            var deleted = await _deleteByName.ExecuteAsync(name);
+            if (!deleted)
+                return NotFound($"Carte '{name}' introuvable");
+            return NoContent();
         }
     }
 }

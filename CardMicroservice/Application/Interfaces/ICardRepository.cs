@@ -7,5 +7,6 @@ namespace CardMicroservice.Application.Interfaces
         Task<List<CardDto>> GetAllAsync();
         Task<CardDto?> GetByNameAsync(string name);
         Task AddAsync(CardDto card);
+        Task<bool> DeleteByNameAsync(string name);
     }
 }
