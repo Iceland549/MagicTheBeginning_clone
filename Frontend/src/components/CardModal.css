@@ -1,0 +1,55 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #111;
+  color: white;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 500px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.card-large {
+  width: 100%;
+  border-radius: 10px;
+  margin: 10px 0;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  cursor: pointer;
+}
+.close-btn:hover {
+  color: #ff5555;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  animation: zoomIn 0.2s ease-out;
+}
