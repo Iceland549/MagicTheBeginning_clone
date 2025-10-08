@@ -1,4 +1,5 @@
 import React from 'react';
+import '../game-styles/Library.css';
 
 export default function Library({ count }) {
   return (

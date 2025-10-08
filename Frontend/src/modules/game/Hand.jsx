@@ -1,5 +1,6 @@
 import React from 'react';
 import CardView from './CardView';
+import '../game-styles/Hand.css';
 
 export default function Hand({ cards, onPlay, isPlayable }) {
   return (

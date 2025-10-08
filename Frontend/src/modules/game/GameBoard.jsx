@@ -4,7 +4,8 @@ import { getAllDecks } from '../decks/deckService';
 import { getAllCards } from '../cards/cardService'; 
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
-import './GameBoard.css';
+import '../game-styles/GameBoard.css';
+import Battlefield from './Battlefield';
 import PlayerZone from './PlayerZone';
 import GameActions from './GameActions';
 import Library from './Library';
@@ -238,8 +239,8 @@ export default function GameBoard() {
   return (
     <div
       className="game-table-bg"
-      style={{
-        backgroundImage: "url('/blood-artist.jpg'), linear-gradient(135deg,#222 0%,#444 100%)"
+        style={{
+          backgroundImage: "url('/blood-artist.jpg'), linear-gradient(135deg,#222 0%,#444 100%)"
       }}
     >
       <div className="game-table-container">
@@ -295,37 +296,48 @@ export default function GameBoard() {
             </button>
           </>
         )}
-
         {state && (
-          <>
-            <div className="magic-board">
-              <PlayerZone
-                playerId={state.playerTwoId}
-                zones={enrichedZones} 
-                isPlayable={false}
+          <div className="magic-board">
+            <PlayerZone
+              playerId={state.playerTwoId}
+              zones={enrichedZones} 
+              isPlayable={false}
+            />
+
+            <div className="battlefield-areas">
+              <Battlefield
+                cards={enrichedZones[`${state.playerTwoId}_battlefield`] || []}
+                label={`Champ de bataille : ${state.playerTwoId}`}
               />
-              <div className="center-zone">
-                <Library count={enrichedZones[`${state.playerTwoId}_library`]?.length || 0} />
-                <div className="vs-label">VS</div>
-                <Library count={enrichedZones[`${playerId}_library`]?.length || 0} />
-              </div>
-              <PlayerZone
-                playerId={playerId}
-                zones={enrichedZones} 
-                onPlayCard={onPlay}
-                isPlayable={state.activePlayerId === playerId && state.currentPhase === 'Main'}
-                currentPhase={state.currentPhase}
+              <Battlefield
+                cards={enrichedZones[`${playerId}_battlefield`] || []}
+                label={`Champ de bataille : Toi`}
               />
-              <div className="game-status">
-                <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
-                <p>Phase : {state.currentPhase}</p>
-                <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
-                <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
-              </div>
-              <GameActions actions={buildActions()} onAction={handleAction} />
-              {loading && <div>Chargement...</div>}
             </div>
-          </>
+
+            <PlayerZone
+              playerId={playerId}
+              zones={enrichedZones}
+              onPlayCard={onPlay}
+              isPlayable={state.activePlayerId === playerId && state.currentPhase === 'Main'}
+              currentPhase={state.currentPhase}
+            />
+
+            <div className="center-zone">
+              <Library count={enrichedZones[`${state.playerTwoId}_library`]?.length || 0} />
+              <div className="vs-label">VS</div>
+              <Library count={enrichedZones[`${playerId}_library`]?.length || 0} />
+            </div>
+
+            <div className="game-status">
+              <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
+              <p>Phase : {state.currentPhase}</p>
+              <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
+              <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
+            </div>
+            <GameActions actions={buildActions()} onAction={handleAction} />
+            {loading && <div>Chargement...</div>}
+          </div>
         )}
       </div>
     </div>

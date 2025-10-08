@@ -1,0 +1,23 @@
+.card-view img {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.card-view img:hover {
+  transform: scale(1.05);
+}
+
+.card-mini {
+  display: inline-block;
+  background: #222;
+  color: #d8b86a;
+  border-radius: 6px;
+  padding: 6px 11px;
+  margin: 0 7px 7px 0;
+  font-family: monospace;
+  font-size: 0.98em;
+  min-width: 60px;
+  text-align: center;
+}

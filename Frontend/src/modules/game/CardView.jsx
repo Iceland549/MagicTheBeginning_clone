@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CardModal from '../../components/CardModal';
+import '../game-styles/CardView.css';
 
 export default function CardView({ card, onPlay, disabled }) {
   const [selectedCard, setSelectedCard] = useState(null);

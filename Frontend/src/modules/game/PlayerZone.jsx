@@ -3,6 +3,7 @@ import Hand from './Hand';
 import Battlefield from './Battlefield';
 import Graveyard from './Graveyard';
 import Library from './Library';
+import '../game-styles/PlayerZone.css';
 
 export default function PlayerZone({ playerId, zones, onPlayCard, isPlayable }) {
   return (
@@ -14,7 +15,6 @@ export default function PlayerZone({ playerId, zones, onPlayCard, isPlayable }) 
         onPlay={onPlayCard}
         isPlayable={isPlayable}
       />
-      <Battlefield cards={zones[`${playerId}_battlefield`] || []} />
       <Graveyard cards={zones[`${playerId}_graveyard`] || []} />
     </div>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import '../game-styles/GameActions.css';
 
 export default function GameActions({ actions, onAction }) {
   if (!actions || !actions.length) return null;

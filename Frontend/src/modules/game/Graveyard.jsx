@@ -1,5 +1,6 @@
 import React from 'react';
 import CardView from './CardView';
+import '../game-styles/Graveyard.css';
 
 export default function Graveyard({ cards }) {
   return (
