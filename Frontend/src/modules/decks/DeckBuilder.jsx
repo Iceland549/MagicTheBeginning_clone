@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; 
 import { getAllCards } from '../cards/cardService';
 import { deleteCardByName } from '../cards/cardService'; 
-import { createDeck, getDecks, validateDeck } from './deckService';
+import { createDeck, getDecksByOwner, validateDeck } from './deckService';
 import { useSelection } from '../context/selectionContext';
 import { CardGrid } from '../cardGrid/CardGrid';
 import './DeckBuilder.css'; 
@@ -33,7 +33,7 @@ export default function DeckBuilder() {
       return;
     }
 
-    getDecks(ownerId)
+    getDecksByOwner(ownerId)
       .then(response => {
         console.log('Decks fetched:', JSON.stringify(response.data, null, 2));
         setMesDecks(response.data || []);
@@ -96,7 +96,7 @@ export default function DeckBuilder() {
       OwnerId: ownerId,
       Name: deckName,
       Cards: selection.map(card => ({
-        CardName: card.name,
+        CardId: card.id,
         Quantity: card.quantity || 1
       }))
     };
@@ -119,7 +119,7 @@ export default function DeckBuilder() {
       clearSelection();
       setDeckName('');
 
-      const updatedDecks = await getDecks(ownerId);
+      const updatedDecks = await getDecksByOwner(ownerId);
       console.log('Updated decks:', JSON.stringify(updatedDecks.data, null, 2));
       setMesDecks(updatedDecks.data || []);
     } catch (error) {

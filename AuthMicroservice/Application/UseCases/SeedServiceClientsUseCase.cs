@@ -25,6 +25,16 @@ namespace AuthMicroservice.Application.UseCases
                 });
             }
 
+            if (!await _repo.ExistsAsync("card-service"))
+            {
+                await _repo.AddAsync(new ServiceClient
+                {
+                    ClientId = "card-service",
+                    ClientSecretHash = BCrypt.Net.BCrypt.HashPassword("SuperSecretCard"),
+                    AllowedScopes = "card.read,card.write"
+                });
+            }
+
             if (!await _repo.ExistsAsync("deck-service"))
             {
                 await _repo.AddAsync(new ServiceClient

@@ -11,50 +11,86 @@ namespace CardMicroservice.Presentation.Controllers
     public class CardsController : ControllerBase
     {
         private readonly GetAllCardsUseCase _getAll;
+        private readonly GetCardByIdUseCase _getById;
         private readonly GetCardByNameUseCase _getByName;
         private readonly ImportCardUseCase _import;
-        private readonly DeleteCardByNameUseCase _deleteByName;
-
+        private readonly DeleteCardByIdUseCase _deleteById;
 
         public CardsController(
             GetAllCardsUseCase getAll,
+            GetCardByIdUseCase getById,
             GetCardByNameUseCase getByName,
             ImportCardUseCase import,
-            DeleteCardByNameUseCase deleteByName)
+            DeleteCardByIdUseCase deleteById)
         {
             _getAll = getAll;
+            _getById = getById;
             _getByName = getByName;
             _import = import;
-            _deleteByName = deleteByName;
+            _deleteById = deleteById;
         }
+
+        // GET /api/cards
         [HttpGet]
-        public async Task<IEnumerable<CardDto>> GetAll()
+        public async Task<IActionResult> GetAll()
         {
-            // Retrieve all stored cards
-            return await _getAll.ExecuteAsync();
-        }
-        [HttpGet("{name}")]
-        public async Task<IActionResult> GetByName(string name)
+            try
+            {
+                var cards = await _getAll.ExecuteAsync();
+                return Ok(cards);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ [CardController] Erreur : {ex.Message}\n{ex.StackTrace}");
+                return StatusCode(500, new
+                {
+                    error = ex.Message
+                });
+            }
+        }   
+
+        // GET /api/cards/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(
+            string id,
+            [FromQuery] string? set = null,
+            [FromQuery] string? lang = null,
+            [FromQuery] string? collectorNumber = null)
         {
-            // Search in database and, if missing, import from Scryfall
-            var card = await _getByName.ExecuteAsync(name);
-            return card == null ? NotFound() : Ok(card);
-        }
-        [HttpPost("import/{name}")]
-        public async Task<ActionResult<CardDto>> Import(string name)
-        {
-            // Force import a card from Scryfall
-            var card = await _import.ExecuteAsync(name);
+            Console.WriteLine($"[CardsController] GetById called id={id} set={set} lang={lang} collector={collectorNumber}");
+            var card = await _getById.ExecuteAsync(id, set, lang, collectorNumber);
             return card == null
-                ? NotFound($"Card '{name}' not found on Scryfall")
+                ? NotFound($"Carte avec ID '{id}' non trouvée.")
                 : Ok(card);
         }
-        [HttpDelete("name/{*name}")]
-        public async Task<IActionResult> DeleteByName(string name)
+
+        // GET /api/cards/name/{name}?set=...&lang=...&collectorNumber=...
+        [HttpGet("name/{name}")]
+        public async Task<IActionResult> GetByName(string name, [FromQuery] string? set = null, [FromQuery] string? lang = null, [FromQuery] string? collectorNumber = null)
         {
-            var deleted = await _deleteByName.ExecuteAsync(name);
+            var card = await _getByName.ExecuteAsync(name, set, lang, collectorNumber);
+            return card == null
+                ? NotFound($"Carte '{name}' non trouvée.")
+                : Ok(card);
+        }
+
+        // POST /api/cards/import/{name}
+        [HttpPost("import/{name}")]
+        public async Task<ActionResult<CardDto>> Import(string name, [FromQuery] string? set = null, [FromQuery] string? lang = null, [FromQuery] string? collectorNumber = null)
+        {
+            var card = await _import.ExecuteAsync(name, set, lang, collectorNumber);
+            return card == null
+                ? NotFound($"Carte '{name}' non trouvée sur Scryfall.")
+                : Ok(card);
+        }
+
+        // DELETE /api/cards/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteById(string id)
+        {
+            var deleted = await _deleteById.ExecuteAsync(id);
             if (!deleted)
-                return NotFound($"Carte '{name}' introuvable");
+                return NotFound($"Carte avec ID '{id}' introuvable.");
             return NoContent();
         }
     }

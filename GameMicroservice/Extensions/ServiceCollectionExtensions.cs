@@ -5,7 +5,7 @@ using GameMicroservice.Infrastructure.AI;
 using GameMicroservice.Infrastructure.Config;
 using GameMicroservice.Infrastructure.Mapping;
 using GameMicroservice.Infrastructure.Persistence;
-using GameMicroservice.Infrastructure.Persistence.Entities;
+using GameMicroservice.Infrastructure.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -39,8 +39,8 @@ namespace GameMicroservice.Extensions
             services.AddScoped<IGameSessionRepository, MongoGameSessionRepository>();
 
             // Clients HTTP pour les cartes et les decks
-            services.AddHttpClient<ICardClient, CardHttpClient>();
-            services.AddHttpClient<IDeckClient, DeckHttpClient>();
+            services.AddHttpClient<ICardClient, CardClient>();
+            services.AddHttpClient<IDeckClient, DeckClient>();
 
             // Moteur de règles du jeu
             services.AddScoped<IGameRulesEngine, GameRulesEngine>();

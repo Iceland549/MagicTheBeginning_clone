@@ -14,5 +14,8 @@ namespace DeckMicroservice.Application.Interfaces
         /// <param name="cardId">The identifier of the card to retrieve.</param>
         /// <returns>The CardDto if found, or null if not found.</returns>
         Task<CardDto?> GetCardByIdAsync(string cardId);
+
+        Task<List<CardDto>> GetAllAsync();
+
     }
 }

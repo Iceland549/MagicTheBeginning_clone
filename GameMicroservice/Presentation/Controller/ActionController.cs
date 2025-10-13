@@ -1,5 +1,6 @@
 ﻿using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.UseCases;
+using GameMicroservice.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ namespace GameMicroservice.Presentation.Controllers
     [Route("api/games/{gameId}/action")]
     public class ActionController : ControllerBase
     {
+        private readonly ICardClient _cardClient;
         private readonly PlayLandUseCase _playLand;
         private readonly PlayCardUseCase _playCard;
         private readonly AttackUseCase _attack;
@@ -20,6 +22,7 @@ namespace GameMicroservice.Presentation.Controllers
         private readonly EndGameUseCase _endGame;
 
         public ActionController(
+            ICardClient cardClient,
             PlayLandUseCase playLand,
             PlayCardUseCase playCard,
             AttackUseCase attack,
@@ -29,6 +32,7 @@ namespace GameMicroservice.Presentation.Controllers
             DiscardUseCase discard,
             EndGameUseCase endGame)
         {
+            _cardClient = cardClient;
             _playLand = playLand;
             _playCard = playCard;
             _attack = attack;
@@ -75,9 +79,24 @@ namespace GameMicroservice.Presentation.Controllers
 
             try
             {
+                // 🔍 Ajout : récupération du CardId si manquant
+                if (string.IsNullOrEmpty(action.CardId) && !string.IsNullOrEmpty(action.CardName))
+                {
+                    var card = await _cardClient.GetCardByNameAsync(action.CardName);
+                    if (card != null)
+                    {
+                        action.CardId = card.Id;
+                        Console.WriteLine($"[ActionController] CardId trouvé pour {action.CardName}: {action.CardId}");
+                    }
+                }
+                var effectiveCardIdOrName = action.CardId ?? action.CardName;
+
+                if (string.IsNullOrEmpty(effectiveCardIdOrName))
+                    return BadRequest("CardId or CardName is required for this action.");
+
                 ActionResultDto result = action.Type switch
                 {
-                    ActionType.PlayLand => await _playLand.ExecuteAsync(gameId, action.PlayerId, action.CardName!),
+                    ActionType.PlayLand => await _playLand.ExecuteAsync(gameId, action.PlayerId, effectiveCardIdOrName),
                     ActionType.PlayCard => await _playCard.ExecuteAsync(gameId, action.PlayerId, action),
                     ActionType.Attack => await _attack.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
                     ActionType.Block => await _block.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),

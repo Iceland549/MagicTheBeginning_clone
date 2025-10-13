@@ -1,6 +1,6 @@
-﻿
-using DeckMicroservice.Application.DTOs;
+﻿using DeckMicroservice.Application.DTOs;
 using DeckMicroservice.Application.Interfaces;
+using System;
 using System.Threading.Tasks;
 
 namespace DeckMicroservice.Application.UseCases
@@ -17,17 +17,27 @@ namespace DeckMicroservice.Application.UseCases
         }
 
         /// <summary>
-        /// Handles the creation of a new deck, including business validation and persistence.
+        /// Gère la création d’un nouveau deck, avec validation métier et sauvegarde.
         /// </summary>
-        public async Task ExecuteAsync(CreateDeckRequest deck)
+        public async Task ExecuteAsync(CreateDeckRequest request)
         {
-            // Business validation: ensures the deck meets all required rules.
-            var (isValid, errorMessage) = await _validate.ExecuteAsync(deck);
+            if (request == null)
+                throw new ArgumentNullException(nameof(request), "La requête de création de deck ne peut pas être nulle.");
+
+            // Valide le deck avant sauvegarde
+            var (isValid, errorMessage) = await _validate.ExecuteAsync(request);
             if (!isValid)
                 throw new InvalidOperationException($"Deck invalide : {errorMessage}");
 
-            // Calls the repository to persist the deck.
-            await _repo.CreateAsync(deck);
+            // Conversion de CreateDeckRequest en DeckDto pour la persistance
+            var deckDto = new DeckDto
+            {
+                OwnerId = request.OwnerId,
+                Name = request.Name,
+                Cards = request.Cards
+            };
+
+            await _repo.AddAsync(deckDto);
         }
     }
 }

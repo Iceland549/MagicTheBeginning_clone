@@ -54,7 +54,7 @@ namespace CardMicroservice.Infrastructure.Scryfall
         public int? CardmarketId { get; set; }
 
         [JsonPropertyName("lang")]
-        public string Language { get; set; } = string.Empty;
+        public string Lang { get; set; } = string.Empty;
 
         [JsonPropertyName("released_at")]
         public string ReleasedAt { get; set; } = string.Empty;

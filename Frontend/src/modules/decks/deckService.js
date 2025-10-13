@@ -1,7 +1,7 @@
 import api from "../../services/api";
 
 /**
- * Create a new deck.
+ * Create a new deck (POST /api/decks).
  * @param {Object} deck
  * @returns {Promise} Created deck
  */
@@ -10,7 +10,7 @@ export const createDeck = async (deck) => {
     OwnerId: deck.OwnerId,
     Name: deck.Name,
     Cards: deck.Cards.map(card => ({
-      CardName: card.CardName,
+      CardId: card.CardId,  
       Quantity: card.Quantity
     }))
   };
@@ -29,9 +29,9 @@ export const createDeck = async (deck) => {
  * @param {string} ownerId
  * @returns {Promise} List of decks
  */
-export const getDecks = async (ownerId) => {
+export const getDecksByOwner = async (ownerId) => {
   try {
-    const response = await api.get(`/decks/${ownerId}`);
+    const response = await api.get(`/decks/owner/${encodeURIComponent(ownerId)}`);
     return response;
   } catch (error) {
     console.error('Get decks error:', error.response?.data || error.message);
@@ -49,7 +49,7 @@ export const validateDeck = async (deck) => {
     OwnerId: deck.OwnerId,
     Name: deck.Name,
     Cards: deck.Cards.map(card => ({
-      CardName: card.CardName,
+      CardId: card.CardId,
       Quantity: card.Quantity
     }))
   };
@@ -66,3 +66,36 @@ export const validateDeck = async (deck) => {
 export function getAllDecks() {
   return api.get('/decks/all');
 }
+
+/**
+ * Get deck by id (GET /api/decks/id/{id}).
+ * @param {string} id
+ * @returns {Promise}
+ */
+export const getDeckById = async (id) => {
+  const response = await api.get(`/decks/${encodeURIComponent(id)}`);
+  return response.data;
+};
+
+/**
+ * Check if card exists in any deck (GET /api/decks/exists-card/{cardId}).
+ * @param {string} cardId
+ * @returns {Promise<boolean>}
+ */
+export function existsCardInAnyDeck(cardId) {
+  return api.get(`/decks/exists-card/${encodeURIComponent(cardId)}`).then(r => r.data);
+}
+
+/**
+ * Fetch all available cards from DeckMicroservice (which proxies CardMicroservice)
+ * @returns {Promise<Array>} List of available cards
+ */
+export const fetchAvailableCards = async () => {
+  try {
+    const response = await api.get('/decks/available-cards');
+    return response.data;
+  } catch (error) {
+    console.error('Fetch available cards error:', error.response?.data || error.message);
+    throw error.response?.data || error;
+  }
+};

@@ -2,7 +2,7 @@
 {
     public class DeckCardDto
     {
-        public string CardName { get; set; } = null!;
+        public string CardId { get; set; } = string.Empty;
         public int Quantity { get; set; }        
     }
 }

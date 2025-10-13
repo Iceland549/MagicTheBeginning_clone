@@ -1,5 +1,6 @@
 ﻿using CardMicroservice.Application.Interfaces;
 using CardMicroservice.Application.UseCases;
+using CardMicroservice.Infrastructure.Clients;
 using CardMicroservice.Infrastructure.Config;
 using CardMicroservice.Infrastructure.Mapping;
 using CardMicroservice.Infrastructure.Persistence.Repositories;
@@ -34,6 +35,7 @@ namespace CardMicroservice.Extensions
 
             // Repositories & clients
             services.AddScoped<ICardRepository, MongoCardRepository>();
+            services.AddHttpClient<IDeckChecker, DeckReferenceCheckerClient>();
             services.AddHttpClient<IScryfallClient, ScryfallHttpClient>(client =>
             {
                 client.BaseAddress = new Uri("https://api.scryfall.com");
@@ -47,8 +49,9 @@ namespace CardMicroservice.Extensions
             // UseCases
             services.AddScoped<GetAllCardsUseCase>();
             services.AddScoped<GetCardByNameUseCase>();
+            services.AddScoped<GetCardByIdUseCase>();
             services.AddScoped<ImportCardUseCase>();
-            services.AddScoped<DeleteCardByNameUseCase>();
+            services.AddScoped<DeleteCardByIdUseCase>();
 
             return services;
         }

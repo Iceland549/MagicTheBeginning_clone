@@ -1,12 +1,23 @@
-﻿using System.Text.Json.Serialization;
+﻿using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace CardMicroservice.Application.DTOs
 {
     public class CardDto
     {
-        [JsonPropertyName("id")]
-        public string Id { get; set; } = null!;
+        [BsonId] // utilisé par MongoDB pour son _id interne
+        [BsonRepresentation(BsonType.ObjectId)]
+        [JsonIgnore] 
+        public string? Id { get; set; }
+
+        [JsonPropertyName("id")] // correspond à l’ID Scryfall
+        public string ScryfallId { get; set; } = null!;
+
+        [BsonElement("normalizedName")]
+        [JsonIgnore] 
+        public string NormalizedName { get; set; } = string.Empty;
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = null!;
@@ -26,14 +37,12 @@ namespace CardMicroservice.Application.DTOs
         [JsonPropertyName("toughness")]
         public int? Toughness { get; set; }
 
-        // Champs spécifiques à votre application
         [JsonPropertyName("abilities")]
-        public List<string> Abilities { get; set; } = new(); // Rempli via oracle_text
+        public List<string> Abilities { get; set; } = new(); 
 
         [JsonPropertyName("imageUrl")]
-        public string? ImageUrl { get; set; } // Mappé depuis image_uris.normal
+        public string? ImageUrl { get; set; } 
 
-        // Nouveaux champs de Scryfall
         [JsonPropertyName("object")]
         public string Object { get; set; } = null!;
 
@@ -56,7 +65,7 @@ namespace CardMicroservice.Application.DTOs
         public int? CardmarketId { get; set; }
 
         [JsonPropertyName("lang")]
-        public string Language { get; set; } = null!;
+        public string Lang { get; set; } = null!;
 
         [JsonPropertyName("releasedAt")]
         public string ReleasedAt { get; set; } = null!;

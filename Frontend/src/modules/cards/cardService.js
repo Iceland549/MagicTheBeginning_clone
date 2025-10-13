@@ -10,25 +10,49 @@ export async function getAllCards() {
 }
 
 /**
- * Fetch a card by name.
- * @param {string} name
- * @returns {Promise} Card data
+ * Fetch a card by Id.
+ * GET /api/cards/{id}
+ * @param {string} cardId
+ * @returns {Promise<Object>} Card data
  */
-export async function fetchCardByName(name) {
-  const { data } = await api.get(`/cards/${encodeURIComponent(name)}`);
+export async function fetchCardById(cardId) {
+  const { data } = await api.get(`/cards/${encodeURIComponent(cardId)}`);
   return data;
 }
 
 /**
- * Import a card from Scryfall by name.
- * @param {string} name
- * @returns {Promise} Imported card data
+ * Fetch a card by name, with optional set and language.
+ * @param {string} name - Card name
+ * @param {string} [set] - Optional set code (e.g., 'neo', 'sta')
+ * @param {string} [lang] - Optional language (e.g., 'ja', 'fr')
+ * @returns {Promise<Object>} Card data
  */
-export async function importCard(name) {
-  const { data } = await api.post(`/cards/import/${encodeURIComponent(name)}`);
+export async function fetchCardByName(name, set, lang, collectorNumber) {
+  const params = {};
+  if (set) params.set = set;
+  if (lang) params.lang = lang;
+  if (collectorNumber) params.collectorNumber = collectorNumber;
+
+
+  const { data } = await api.get(`/cards/${encodeURIComponent(name)}`, { params });
   return data;
 }
 
-export async function deleteCardByName(name) {
-  return api.delete(`/cards/name/${encodeURIComponent(name)}`);
+/**
+ * Import a card from Scryfall by name, with optional set and language.
+ * @param {string} name
+ * @returns {Promise} Imported card data
+ */
+export async function importCard(name, set, lang, collectorNumber) {
+  const params = {};
+  if (set) params.set = set;
+  if (lang) params.lang = lang;
+  if (collectorNumber) params.collectorNumber = collectorNumber;
+
+  const { data } = await api.post(`/cards/import/${encodeURIComponent(name)}`, null, { params });
+  return data;
+}
+
+export async function deleteCardByName(cardId) {
+  return api.delete(`/cards/${encodeURIComponent(cardId)}`);
 }

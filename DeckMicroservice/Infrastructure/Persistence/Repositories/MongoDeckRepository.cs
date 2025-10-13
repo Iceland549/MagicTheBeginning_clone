@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using DeckMicroservice.Application.DTOs;
+﻿using DeckMicroservice.Application.DTOs;
 using DeckMicroservice.Application.Interfaces;
 using DeckMicroservice.Infrastructure.Config;
 using DeckMicroservice.Infrastructure.Persistence.Entities;
@@ -7,153 +6,90 @@ using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
-namespace DeckMicroservice.Infrastructure.Repositories
+namespace DeckMicroservice.Infrastructure.Persistence.Repositories
 {
     public class MongoDeckRepository : IDeckRepository
     {
         private readonly IMongoCollection<Deck> _col;
-        private readonly ICardClient _cardClient;
-        private readonly IMapper _mapper;
 
-        public MongoDeckRepository(IMongoDatabase db, IOptions<MongoDbConfig> mongoConfig, ICardClient cardClient, IMapper mapper)
+        public MongoDeckRepository(IMongoDatabase db, IOptions<MongoDbConfig> mongoConfig)
         {
-            if (db == null) throw new ArgumentNullException(nameof(db));
-            if (mongoConfig == null) throw new ArgumentNullException(nameof(mongoConfig));
-            if (cardClient == null) throw new ArgumentNullException(nameof(cardClient));
-            if (mapper == null) throw new ArgumentNullException(nameof(mapper));
-
             _col = db.GetCollection<Deck>(mongoConfig.Value.DeckCollection);
-            _cardClient = cardClient;
-            _mapper = mapper;
         }
 
-        public async Task CreateAsync(CreateDeckRequest req)
+        /// <summary>
+        /// Ajoute un deck (le deck est déjà validé en amont).
+        /// </summary>
+        public async Task AddAsync(DeckDto deck)
         {
-            if (req == null)
-                throw new ArgumentNullException(nameof(req));
+            if (deck == null)
+                throw new ArgumentNullException(nameof(deck));
 
-            if (string.IsNullOrWhiteSpace(req.OwnerId))
-                throw new ArgumentException("OwnerId is required", nameof(req.OwnerId));
-            if (string.IsNullOrWhiteSpace(req.Name))
-                throw new ArgumentException("Name is required", nameof(req.Name));
-
-            if (!await ValidateAsync(req))
-                throw new InvalidOperationException("Deck validation failed.");
-
-            var deck = new Deck
+            var entity = new Deck
             {
-                OwnerId = req.OwnerId,
-                Name = req.Name,
-                Cards = req.Cards?.Select(c => new DeckCard
+                OwnerId = deck.OwnerId,
+                Name = deck.Name,
+                Cards = deck.Cards?.Select(c => new DeckCard
                 {
-                    CardName = c.CardName,
+                    CardId = c.CardId,
                     Quantity = c.Quantity
                 }).ToList() ?? new List<DeckCard>()
             };
 
-            await _col.InsertOneAsync(deck);
+            await _col.InsertOneAsync(entity);
         }
 
-
+        /// <summary>
+        /// Récupère tous les decks d'un propriétaire donné.
+        /// </summary>
         public async Task<List<DeckDto>> GetByOwnerAsync(string ownerId)
         {
-            if (string.IsNullOrEmpty(ownerId))
-            {
-                Console.WriteLine("Error: GetByOwnerAsync received null or empty ownerId.");
-                throw new ArgumentNullException(nameof(ownerId));
-            }
-
-            Console.WriteLine($"Fetching decks for ownerId: {ownerId}");
             var decks = await _col.Find(d => d.OwnerId == ownerId).ToListAsync();
-            return decks.Select(d => new DeckDto
-            {
-                Id = d.Id,
-                OwnerId = d.OwnerId,
-                Name = d.Name,
-                Cards = d.Cards?.Select(c => new DeckCardDto
-                {
-                    CardName = c.CardName,
-                    Quantity = c.Quantity
-                }).ToList() ?? new List<DeckCardDto>()
-            }).ToList();
+            return decks.Select(MapToDto).ToList();
         }
 
-        public async Task<bool> ValidateAsync(CreateDeckRequest deck)
+        /// <summary>
+        /// Récupère tous les decks.
+        /// </summary>
+        public async Task<List<DeckDto>> GetAllDecksAsync()
         {
-            if (deck == null)
-            {
-                Console.WriteLine("Error: ValidateAsync received null deck.");
-                throw new ArgumentNullException(nameof(deck));
-            }
-
-            Console.WriteLine($"Validating deck: {deck.Name ?? "unnamed"}, OwnerId: {deck.OwnerId ?? "null"}, CardCount: {deck.Cards?.Count ?? 0}");
-            if (string.IsNullOrEmpty(deck.Name))
-                throw new InvalidOperationException("Deck name is required");
-
-            if (deck.Cards == null || !deck.Cards.Any())
-                throw new InvalidOperationException("Deck must contain at least one card");
-
-            var total = deck.Cards.Sum(c => c.Quantity);
-            Console.WriteLine($"Total cards: {total}");
-            if (total < 60)
-                throw new InvalidOperationException($"Deck must have at least 60 cards, found {total}");
-
-            int landCount = 0;
-            foreach (var card in deck.Cards)
-            {
-                if (card == null || string.IsNullOrEmpty(card.CardName))
-                {
-                    Console.WriteLine("Error: Invalid card in deck (null or empty CardName).");
-                    throw new InvalidOperationException("Invalid card: CardName is required.");
-                }
-
-                Console.WriteLine($"Fetching card details for: {card.CardName}, Quantity: {card.Quantity}");
-                try
-                {
-                    var cardDetails = await _cardClient.GetCardByIdAsync(card.CardName);
-                    if (cardDetails == null)
-                    {
-                        Console.WriteLine($"Card not found: {card.CardName}");
-                        throw new InvalidOperationException($"Card {card.CardName} not found in database");
-                    }
-                    Console.WriteLine($"Card found: {card.CardName}, TypeLine: {cardDetails.TypeLine ?? "null"}");
-
-                    // Vérifier si la carte est un terrain (gérer les cas où TypeLine est null ou contient "Land")
-                    bool isLand = !string.IsNullOrEmpty(cardDetails.TypeLine) && cardDetails.TypeLine.Contains("Land", StringComparison.OrdinalIgnoreCase);
-                    if (card.Quantity > 4 && !isLand)
-                    {
-                        Console.WriteLine($"Validation failed: Card {card.CardName} exceeds maximum of 4 copies (Quantity: {card.Quantity})");
-                        throw new InvalidOperationException($"Card {card.CardName} exceeds maximum of 4 copies");
-                    }
-
-                    if (isLand)
-                        landCount += card.Quantity;
-                }
-                catch (HttpRequestException ex)
-                {
-                    Console.WriteLine($"HTTP error fetching card {card.CardName}: {ex.Message}");
-                    throw new InvalidOperationException($"Failed to fetch card {card.CardName}: {ex.Message}", ex);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Unexpected error fetching card {card.CardName}: {ex}");
-                    throw;
-                }
-            }
-
-            Console.WriteLine($"Total lands: {landCount}");
-            if (landCount < 20)
-                throw new InvalidOperationException($"Deck must contain at least 20 lands, found {landCount}");
-
-            Console.WriteLine("Deck validation successful");
-            return true;
+            var decks = await _col.Find(_ => true).ToListAsync();
+            return decks.Select(MapToDto).ToList();
         }
-        public async Task<List<Deck>> GetAllDecksAsync()
+
+        /// <summary>
+        /// Récupère un deck par son identifiant.
+        /// </summary>
+        public async Task<DeckDto?> GetByIdAsync(string id)
         {
-            return await _col.Find(_ => true).ToListAsync();
+            var deck = await _col.Find(d => d.Id == id).FirstOrDefaultAsync();
+            return deck == null ? null : MapToDto(deck);
         }
 
+        /// <summary>
+        /// Vérifie si une carte donnée est utilisée dans au moins un deck.
+        /// </summary>
+        public async Task<bool> ExistsCardAsync(string cardId)
+        {
+            var filter = Builders<Deck>.Filter.ElemMatch(d => d.Cards, c => c.CardId == cardId);
+            var count = await _col.CountDocumentsAsync(filter);
+            return count > 0;
+        }
+
+        // 🔸 Méthode utilitaire pour éviter la répétition de mapping
+        private static DeckDto MapToDto(Deck deck) => new DeckDto
+        {
+            Id = deck.Id,
+            OwnerId = deck.OwnerId,
+            Name = deck.Name,
+            Cards = deck.Cards.Select(c => new DeckCardDto
+            {
+                CardId = c.CardId,
+                Quantity = c.Quantity
+            }).ToList()
+        };
     }
 }

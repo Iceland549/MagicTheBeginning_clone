@@ -69,15 +69,10 @@ namespace GameMicroservice.Application.UseCases
 
             Console.WriteLine($"[DrawCardUseCase] Carte piochée: {drawnCard.CardName}, Phase={session.CurrentPhase}, DeckRestant={deck.Count}, Main={hand.Count}");
 
-            if (session.CurrentPhase != Phase.Draw)
-            {
-                return new ActionResultDto
-                {
-                    Success = false,
-                    Message = "Déjà pioché, phase en cours : " + session.CurrentPhase,
-                    GameState = _mapper.Map<GameSessionDto>(session)
-                };
-            }
+            //if (session.CurrentPhase != Phase.Draw)
+            //{
+            //    session.CurrentPhase = Phase.Draw;
+            //}
 
             session = _engine.DrawStep(session, playerId);
             await _repo.UpdateAsync(session);

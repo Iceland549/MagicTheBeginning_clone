@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using CardMicroservice.Application.DTOs;
+using CardMicroservice.Infrastructure.Persistence.Entities;
 using CardMicroservice.Infrastructure.Scryfall;
 using System;
 
@@ -10,8 +11,8 @@ namespace CardMicroservice.Infrastructure.Mapping
         public AutoMapperProfile()
         {
             CreateMap<ScryfallCardDto, CardDto>()
-                // Basic fields
-                .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dst => dst.NormalizedName, opt => opt.Ignore())
+                .ForMember(dst => dst.ScryfallId, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dst => dst.Name, opt => opt.MapFrom(src => src.Name))
                 .ForMember(dst => dst.ManaCost, opt => opt.MapFrom(src => src.ManaCost))
                 .ForMember(dst => dst.TypeLine, opt => opt.MapFrom(src => src.TypeLine))
@@ -20,9 +21,7 @@ namespace CardMicroservice.Infrastructure.Mapping
                 .ForMember(dst => dst.Toughness, opt => opt.ConvertUsing(new StringToNullableIntConverter(), src => src.Toughness))
                 .ForMember(dst => dst.Keywords, opt => opt.MapFrom(src => src.Keywords ?? new List<string>()))
                 .ForMember(dst => dst.ImageUrl, opt => opt.MapFrom(src => src.ImageUrisData != null ? src.ImageUrisData.Normal : null))
-                // Convert Cmc from float to int
                 .ForMember(dst => dst.Cmc, opt => opt.MapFrom(src => (int)Math.Floor(src.Cmc)))
-                // Additional fields from ScryfallCardDto
                 .ForMember(dst => dst.Object, opt => opt.MapFrom(src => src.Object))
                 .ForMember(dst => dst.OracleId, opt => opt.MapFrom(src => src.OracleId))
                 .ForMember(dst => dst.MultiverseIds, opt => opt.MapFrom(src => src.MultiverseIds))
@@ -30,7 +29,7 @@ namespace CardMicroservice.Infrastructure.Mapping
                 .ForMember(dst => dst.MtgoFoilId, opt => opt.MapFrom(src => src.MtgoFoilId))
                 .ForMember(dst => dst.TcgplayerId, opt => opt.MapFrom(src => src.TcgplayerId))
                 .ForMember(dst => dst.CardmarketId, opt => opt.MapFrom(src => src.CardmarketId))
-                .ForMember(dst => dst.Language, opt => opt.MapFrom(src => src.Language))
+                .ForMember(dst => dst.Lang, opt => opt.MapFrom(src => src.Lang))
                 .ForMember(dst => dst.ReleasedAt, opt => opt.MapFrom(src => src.ReleasedAt))
                 .ForMember(dst => dst.Uri, opt => opt.MapFrom(src => src.Uri))
                 .ForMember(dst => dst.ScryfallUri, opt => opt.MapFrom(src => src.ScryfallUri))
@@ -86,8 +85,15 @@ namespace CardMicroservice.Infrastructure.Mapping
                 .ForMember(dst => dst.Prices, opt => opt.MapFrom(src => src.Prices))
                 .ForMember(dst => dst.RelatedUris, opt => opt.MapFrom(src => src.RelatedUris))
                 .ForMember(dst => dst.PurchaseUris, opt => opt.MapFrom(src => src.PurchaseUris))
-                // Map Keywords to Abilities, default to empty list if null
                 .ForMember(dst => dst.Abilities, opt => opt.MapFrom(src => src.Keywords ?? new List<string>()));
+
+            CreateMap<CardEntity, CardDto>()
+                .ForMember(dst => dst.Lang, opt => opt.MapFrom(src => src.Language))
+                .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id));
+
+            CreateMap<CardDto, CardEntity>()
+                .ForMember(dst => dst.Language, opt => opt.MapFrom(src => src.Lang))
+                .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id));
         }
     }
 

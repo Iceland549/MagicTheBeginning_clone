@@ -16,10 +16,18 @@ namespace Test.CardMicroservice.Tests
         {
             // Arrange
             var mockRepo = new Mock<ICardRepository>();
-            var existing = new CardDto { Id = "1", Name = "Lightning Bolt" };
-            mockRepo.Setup(r => r.GetByNameAsync("Lightning Bolt")).ReturnsAsync(existing);
+            var existing = new CardDto { Name = "Lightning Bolt" };
 
-            // ImportUseCase can be a real instance with mocked deps; it won't be called in this scenario
+            // Nouvelle signature : (name, set, lang, collectorNumber)
+            mockRepo
+                .Setup(r => r.GetByNameAsync(
+                    It.Is<string>(s => s == "Lightning Bolt"),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>()))
+                .ReturnsAsync(existing);
+
+            // Import use case (non utilisé ici)
             var dummyClient = new Mock<IScryfallClient>();
             var dummyRepo = new Mock<ICardRepository>();
             var dummyMapper = new Mock<IMapper>();
@@ -28,14 +36,20 @@ namespace Test.CardMicroservice.Tests
             var useCase = new GetCardByNameUseCase(mockRepo.Object, importUseCase);
 
             // Act
-            var result = await useCase.ExecuteAsync("Lightning Bolt");
+            var result = await useCase.ExecuteAsync("Lightning Bolt", null, null, null);
 
             // Assert
             Assert.NotNull(result);
             Assert.Equal("Lightning Bolt", result.Name);
 
-            // Ensure we did not trigger remote fetch (import)
-            dummyClient.Verify(c => c.FetchByNameAsync(It.IsAny<string>()), Times.Never);
+            // Vérifie qu'on n'a pas tenté d'importer depuis Scryfall
+            dummyClient.Verify(
+                c => c.FetchByNameAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>()),
+                Times.Never);
         }
 
         [Fact]
@@ -43,30 +57,56 @@ namespace Test.CardMicroservice.Tests
         {
             // Arrange
             var mockRepo = new Mock<ICardRepository>();
-            mockRepo.Setup(r => r.GetByNameAsync("NonExisting")).ReturnsAsync((CardDto?)null);
+            mockRepo
+                .Setup(r => r.GetByNameAsync(
+                    It.Is<string>(s => s == "NonExisting"),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>()))
+                .ReturnsAsync((CardDto?)null);
 
-            // Real ImportUseCase but with mocked internals to control output
             var mockClient = new Mock<IScryfallClient>();
             var mockImportRepo = new Mock<ICardRepository>();
             var mockMapper = new Mock<IMapper>();
 
             var raw = new ScryfallCardDto { Name = "NewCard" };
-            var importedDto = new CardDto { Id = "42", Name = "NewCard" };
+            var importedDto = new CardDto { Name = "NewCard" };
 
-            mockClient.Setup(c => c.FetchByNameAsync("NonExisting")).ReturnsAsync(raw);
-            mockMapper.Setup(m => m.Map<CardDto>(raw)).Returns(importedDto);
-            mockImportRepo.Setup(r => r.AddAsync(importedDto)).Returns(Task.CompletedTask);
+            // Signature complète : name, set, lang, collectorNumber
+            mockClient
+                .Setup(c => c.FetchByNameAsync(
+                    It.Is<string>(s => s == "NonExisting"),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>()))
+                .ReturnsAsync(raw);
+
+            mockMapper
+                .Setup(m => m.Map<CardDto>(raw))
+                .Returns(importedDto);
+
+            mockImportRepo
+                .Setup(r => r.AddAsync(It.Is<CardDto>(d => d.Name == "NewCard")))
+                .Returns(Task.CompletedTask);
 
             var importUseCase = new ImportCardUseCase(mockClient.Object, mockImportRepo.Object, mockMapper.Object);
             var useCase = new GetCardByNameUseCase(mockRepo.Object, importUseCase);
 
             // Act
-            var result = await useCase.ExecuteAsync("NonExisting");
+            var result = await useCase.ExecuteAsync("NonExisting", null, null, null);
 
             // Assert
             Assert.NotNull(result);
             Assert.Equal("NewCard", result.Name);
+
             mockImportRepo.Verify(r => r.AddAsync(It.Is<CardDto>(d => d.Name == "NewCard")), Times.Once);
+            mockClient.Verify(
+                c => c.FetchByNameAsync(
+                    It.Is<string>(s => s == "NonExisting"),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>()),
+                Times.Once);
         }
     }
 }

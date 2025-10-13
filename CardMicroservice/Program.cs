@@ -113,6 +113,7 @@ else
 {
     app.UseExceptionHandler("/error"); // Route for global error handling
 }
+app.UseDeveloperExceptionPage();
 
 app.UseHttpsRedirection();
 

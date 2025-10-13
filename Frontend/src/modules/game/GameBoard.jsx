@@ -55,7 +55,12 @@ export default function GameBoard() {
     try {
       const response = await getGameState(gameId);
       console.log('Game state:', JSON.stringify(response, null, 2));
-      setState(response);
+      if (response?.zones) {
+        console.log('Zones reçues du backend:', Object.keys(response.zones));
+      } else {
+        console.warn('Aucune zone reçue dans le game state');
+      }
+      setState({...response});
     } catch (error) {
       alert('Erreur lors du rafraîchissement de létat du jeu');
     }
@@ -103,7 +108,7 @@ export default function GameBoard() {
 
     setLoading(true);
     try {
-      const playData = { PlayerId: playerId, CardName: cardName ?? null, Type: actionType };
+      const playData = { PlayerId: playerId, CardId: null, Type: actionType };
       console.log('Sending playData:', JSON.stringify(playData, null, 2));
       await playCard(gameId, playData);
       await refresh();
@@ -195,7 +200,7 @@ export default function GameBoard() {
     ? Object.keys(state.zones).reduce((acc, zoneKey) => {
         acc[zoneKey] = state.zones[zoneKey].map(card => ({
           ...card,
-          imageUrl: cardDetails[card.cardName]?.imageUrl || card.imageUrl || 'https://via.placeholder.com/100'
+          imageUrl: cardDetails[card.cardName || card.name]?.imageUrl || card.imageUrl || 'https://via.placeholder.com/100'
         }));
         return acc;
       }, {})
@@ -235,6 +240,10 @@ export default function GameBoard() {
     }
   };
 
+  if (state) {
+    console.log("♻️ Re-render GameBoard — Zones enrichies:", Object.keys(enrichedZones));
+    console.log("🖐 Main joueur :", enrichedZones[`${playerId}_hand`]);
+  }
 
   return (
     <div

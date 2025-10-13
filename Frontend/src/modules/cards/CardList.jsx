@@ -7,7 +7,10 @@ import CardModal from '../../components/CardModal';
 
 export default function CardList() {
   const [search, setSearch] = useState('');
+  const [setCode, setSetCode] = useState('');
+  const [lang, setLang] = useState('');
   const [card, setCard] = useState(null);
+  const [collectorNumber, setCollectorNumber] = useState('');
   const [quantity, setQuantity] = useState(1); 
   const [feedback, setFeedback] = useState('');
   const navigate = useNavigate();
@@ -16,9 +19,8 @@ export default function CardList() {
 
 
   const handleSearch = async () => {
-    if (!search) return;
     try {
-      const result = await fetchCardByName(search);
+      const result = await fetchCardByName(search, setCode, lang, collectorNumber);
       console.log('Card data fetched:', JSON.stringify(result, null, 2));
       setCard(result);
       setFeedback('');
@@ -34,7 +36,7 @@ export default function CardList() {
     console.log('Adding card to deck:', JSON.stringify(card, null, 2), 'Quantity:', quantity);
     addCard(card, quantity);
     setFeedback(`La carte "${card.name}" (x${quantity}) a été ajoutée à ton deck !`);
-    setQuantity(1); // Réinitialiser la quantité après ajout
+    setQuantity(1); 
   };
 
   return (
@@ -51,11 +53,41 @@ export default function CardList() {
           onChange={e => setSearch(e.target.value)}
           placeholder="Nom de la carte"
         />
+        <div className="form-group mt-2">
+          <label>Code du set (optionnel)</label>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Ex : sta, neo, one..."
+            value={setCode}
+            onChange={(e) => setSetCode(e.target.value)}
+          />
+        </div>
+        <div className="form-group mt-2">
+          <label>Numéro de collection (optionnel)</label>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Ex : 90, 44, 7a..."
+            value={collectorNumber}
+            onChange={(e) => setCollectorNumber(e.target.value)}
+          />
+        </div>
+        <div className="form-group mt-2">
+          <label>Langue (optionnel)</label>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Ex : ja, fr, de..."
+            value={lang}
+            onChange={(e) => setLang(e.target.value)}
+          />
+        </div>
         <button onClick={handleSearch}>Rechercher</button>
         {feedback && <p className="feedback">{feedback}</p>}
         {card && (
           <div className="card-result">
-            <h3>{card.name}</h3>
+            <h3>{card.printedName || card.name}</h3>
             {card.imageUrl && (
               <img
                 src={card.imageUrl}

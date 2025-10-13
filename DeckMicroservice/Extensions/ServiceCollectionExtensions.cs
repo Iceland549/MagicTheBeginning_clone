@@ -2,7 +2,7 @@
 using DeckMicroservice.Application.UseCases;
 using DeckMicroservice.Infrastructure.Config;
 using DeckMicroservice.Infrastructure.Mapping;
-using DeckMicroservice.Infrastructure.Repositories;
+using DeckMicroservice.Infrastructure.Persistence.Repositories;
 using DeckMicroservice.Infrastructure.Clients;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
@@ -30,8 +30,7 @@ namespace DeckMicroservice.Extensions
                 return client.GetDatabase(cfg.DatabaseName);
             });
 
-            services.AddHttpClient<ICardClient, CardHttpClient>();
-
+            services.AddHttpClient<ICardClient, CardClient>();
 
             // 4) Repository Mongo
             services.AddScoped<IDeckRepository, MongoDeckRepository>();
@@ -43,6 +42,8 @@ namespace DeckMicroservice.Extensions
             services.AddScoped<CreateDeckUseCase>();
             services.AddScoped<ValidateDeckUseCase>();
             services.AddScoped<GetDecksByOwnerUseCase>();
+            services.AddScoped<GetDeckByIdUseCase>();
+            services.AddScoped<CheckIfCardExistsInAnyDeckUseCase>();
 
             return services;
         }

@@ -16,14 +16,16 @@ namespace CardMicroservice.Application.UseCases
             _import = import;
         }
 
-        public async Task<CardDto?> ExecuteAsync(string name)
+        public async Task<CardDto?> ExecuteAsync(string name, string? set = null, string? lang = null, string? collectorNumnber = null)
         {
-            // Si existe, renvoie tout de suite
-            var existing = await _repo.GetByNameAsync(name);
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+
+            var existing = await _repo.GetByNameAsync(name, set, lang, collectorNumnber);
             if (existing != null) return existing;
 
-            // Sinon, importe depuis Scryfall
-            return await _import.ExecuteAsync(name);
+            var imported = await _import.ExecuteAsync(name, set, lang, collectorNumnber);
+            return imported;
         }
     }
 }

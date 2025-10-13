@@ -24,18 +24,6 @@
   z-index: 0;
 }
 
-/* .section::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: inherit;
-  background-size: inherit;
-  background-position: inherit;
-  background-repeat: no-repeat;
-  filter: blur(2px);
-  transform: scale(1.05); 
-  z-index: -1;
-} */
 
 .section, .container, .deck-section, .dashboard-options, .card-grid, .card-item, .feedback {
   background-color: rgba(255, 255, 255, 0.85); 

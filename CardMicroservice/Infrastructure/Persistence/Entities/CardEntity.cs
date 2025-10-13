@@ -1,6 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace CardMicroservice.Infrastructure.Persistence.Entities
 {
@@ -9,6 +10,9 @@ namespace CardMicroservice.Infrastructure.Persistence.Entities
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string Id { get; set; } = null!;
+
+        [JsonPropertyName("id")] 
+        public string ScryfallId { get; set; } = null!;
 
         [BsonElement("name")]
         public string Name { get; set; } = null!;
