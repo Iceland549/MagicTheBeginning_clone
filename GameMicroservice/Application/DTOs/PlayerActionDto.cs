@@ -21,7 +21,7 @@
         public string PlayerId { get; set; } = null!; 
 
         public ActionType Type { get; set; }
-        public string? CardName { get; set; }
+        //public string? CardName { get; set; }
         public string? CardId {get; set;}
         public List<string>? Attackers { get; set; }
         public Dictionary<string, string>? Blockers { get; set; }

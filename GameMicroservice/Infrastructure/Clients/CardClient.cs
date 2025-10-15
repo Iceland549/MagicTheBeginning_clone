@@ -15,10 +15,10 @@ namespace GameMicroservice.Infrastructure.Clients
             _client.BaseAddress = new Uri(config["CardMicroserviceBaseUrl"] ?? "http://card:5002");
         }
 
-        public async Task<CardDto?> GetCardByNameAsync(string name)
+        public async Task<CardDto?> GetCardByIdAsync(string cardId)
         {
             await AddAuthHeaderAsync();
-            var response = await _client.GetAsync($"/api/cards/{Uri.EscapeDataString(name)}");
+            var response = await _client.GetAsync($"/api/cards/{Uri.EscapeDataString(cardId)}");
             return await DeserializeResponse<CardDto>(response);
         }
     }

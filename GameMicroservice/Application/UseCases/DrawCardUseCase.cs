@@ -67,7 +67,7 @@ namespace GameMicroservice.Application.UseCases
             deck.RemoveAt(0);
             hand.Add(drawnCard);
 
-            Console.WriteLine($"[DrawCardUseCase] Carte piochée: {drawnCard.CardName}, Phase={session.CurrentPhase}, DeckRestant={deck.Count}, Main={hand.Count}");
+            Console.WriteLine($"[DrawCardUseCase] Carte piochée: {drawnCard.CardId}, Phase={session.CurrentPhase}, DeckRestant={deck.Count}, Main={hand.Count}");
 
             //if (session.CurrentPhase != Phase.Draw)
             //{

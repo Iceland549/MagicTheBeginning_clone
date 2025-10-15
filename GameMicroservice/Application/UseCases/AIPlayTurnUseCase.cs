@@ -63,44 +63,44 @@ namespace GameMicroservice.Application.UseCases
                 }
 
                 // Handle PlayLand
-                if (action.Type == ActionType.PlayLand && !string.IsNullOrEmpty(action.CardName))
+                if (action.Type == ActionType.PlayLand && !string.IsNullOrEmpty(action.CardId))
                 {
                     try
                     {
                         // Optional: validate (will throw if invalid)
-                        await _engine.ValidatePlayLandAsync(sessionEntity, sessionEntity.ActivePlayerId, action.CardName);
+                        await _engine.ValidatePlayLandAsync(sessionEntity, sessionEntity.ActivePlayerId, action.CardId);
 
                         // Apply the PlayLand mutation (synchronous)
-                        sessionEntity = _engine.PlayLand(sessionEntity, sessionEntity.ActivePlayerId, action.CardName);
+                        sessionEntity = _engine.PlayLand(sessionEntity, sessionEntity.ActivePlayerId, action.CardId);
 
                         // Persist changes
                         await _engine.SaveSessionAsync(sessionEntity);
-                        Console.WriteLine($"[AIPlayTurn] Played land {action.CardName}");
+                        Console.WriteLine($"[AIPlayTurn] Played land {action.CardId}");
 
                         // Refresh hand reference since zones mutated
                         hand = sessionEntity.Zones.ContainsKey(handKey) ? sessionEntity.Zones[handKey] : new List<CardInGame>();
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[AIPlayTurn] Impossible de jouer le land {action.CardName}: {ex.Message}");
+                        Console.WriteLine($"[AIPlayTurn] Impossible de jouer le land {action.CardId}: {ex.Message}");
                         // Defensive: remove the problematic card from hand so AI won't loop on it
                         if (hand != null)
-                            hand.RemoveAll(c => c.CardName == action.CardName);
+                            hand.RemoveAll(c => c.CardId == action.CardId);
                     }
                     continue; // next decision iteration
                 }
 
                 // Handle PlayCard: delegate to PlayCardUseCase (which returns ActionResultDto with GameState = GameSessionDto)
-                if (action.Type == ActionType.PlayCard && !string.IsNullOrEmpty(action.CardName))
+                if (action.Type == ActionType.PlayCard && !string.IsNullOrEmpty(action.CardId))
                 {
                     var result = await _play.ExecuteAsync(sessionId, sessionEntity.ActivePlayerId, action);
 
                     if (result == null || !result.Success || result.GameState == null)
                     {
-                        Console.WriteLine($"[AIPlayTurn] Impossible de jouer {action.CardName}, on essaie autre chose");
+                        Console.WriteLine($"[AIPlayTurn] Impossible de jouer {action.CardId}, on essaie autre chose");
                         // Remove this card from hand to avoid infinite loop on impossible-to-play card
                         if (hand != null)
-                            hand.RemoveAll(c => c.CardName == action.CardName);
+                            hand.RemoveAll(c => c.CardId == action.CardId);
                         continue;
                     }
 

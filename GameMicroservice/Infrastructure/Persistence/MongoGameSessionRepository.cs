@@ -36,9 +36,9 @@ namespace GameMicroservice.Infrastructure.Persistence
             var p2Deck = allDecks.FirstOrDefault(d => d.Id == deckIdP2)
                          ?? throw new InvalidOperationException($"No deck found with ID {deckIdP2}");
 
-            // Convert DeckDto.Cards to List<string> (cardName)
-            var p1Library = Shuffle(p1Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardName, c.Quantity)).ToList());
-            var p2Library = Shuffle(p2Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardName, c.Quantity)).ToList());
+            // Convert DeckDto.Cards to List<string>
+            var p1Library = Shuffle(p1Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardId, c.Quantity)).ToList());
+            var p2Library = Shuffle(p2Deck.Cards.SelectMany(c => Enumerable.Repeat(c.CardId, c.Quantity)).ToList());
 
             var session = new GameSession
             {
@@ -47,29 +47,29 @@ namespace GameMicroservice.Infrastructure.Persistence
                 ActivePlayerId = playerOneId,
                 CurrentPhase = Phase.Draw,
                 Zones = new Dictionary<string, List<CardInGame>>
-        {
-            { $"{playerOneId}_library", new List<CardInGame>() },
-            { $"{playerOneId}_hand", new List<CardInGame>() },
-            { $"{playerOneId}_battlefield", new List<CardInGame>() },
-            { $"{playerOneId}_graveyard", new List<CardInGame>() },
-            { $"{playerTwoId}_library", new List<CardInGame>() },
-            { $"{playerTwoId}_hand", new List<CardInGame>() },
-            { $"{playerTwoId}_battlefield", new List<CardInGame>() },
-            { $"{playerTwoId}_graveyard", new List<CardInGame>() }
-        },
-                Players = new List<PlayerState>
-        {
-            new PlayerState
-            {
-                PlayerId = playerOneId,
-                LifeTotal = 20,
-                ManaPool = new Dictionary<string, int>
                 {
+                    { $"{playerOneId}_library", new List<CardInGame>() },
+                    { $"{playerOneId}_hand", new List<CardInGame>() },
+                    { $"{playerOneId}_battlefield", new List<CardInGame>() },
+                    { $"{playerOneId}_graveyard", new List<CardInGame>() },
+                    { $"{playerTwoId}_library", new List<CardInGame>() },
+                    { $"{playerTwoId}_hand", new List<CardInGame>() },
+                    { $"{playerTwoId}_battlefield", new List<CardInGame>() },
+                    { $"{playerTwoId}_graveyard", new List<CardInGame>() }
+                },
+                Players = new List<PlayerState>
+                {
+                    new PlayerState
+                    {
+                        PlayerId = playerOneId,
+                        LifeTotal = 20,
+                        ManaPool = new Dictionary<string, int>
+                    {
                     { "White", 0 }, { "Blue", 0 }, { "Black", 0 }, { "Red", 0 }, { "Green", 0 }
                 },
                 LandsPlayedThisTurn = 0,
                 HasDrawnThisTurn = false
-            },
+                },
             new PlayerState
             {
                 PlayerId = playerTwoId,
@@ -85,8 +85,8 @@ namespace GameMicroservice.Infrastructure.Persistence
             };
 
             // Affecte les bibliothèques
-            session.Zones[$"{playerOneId}_library"] = p1Library.Select(name => new CardInGame(name)).ToList();
-            session.Zones[$"{playerTwoId}_library"] = p2Library.Select(name => new CardInGame(name)).ToList();
+            session.Zones[$"{playerOneId}_library"] = p1Library.Select(id => new CardInGame { CardId = id }).ToList();
+            session.Zones[$"{playerTwoId}_library"] = p2Library.Select(id => new CardInGame { CardId = id }).ToList();
 
             // Pioche initiale : 7 cartes pour chaque joueur
             for (int i = 0; i < 7; i++)
@@ -97,12 +97,12 @@ namespace GameMicroservice.Infrastructure.Persistence
                     if (library.Count > 0)
                     {
                         var card = library[0];
-                        var details = await _cardClient.GetCardByNameAsync(card.CardName);
+                        var details = await _cardClient.GetCardByIdAsync(card.CardId);
                         if (details != null)
                         {
                             session.Zones[$"{playerId}_hand"].Add(new CardInGame
                             {
-                                CardName = details.Name,
+                                CardId = details.Id,
                                 Name = details.Name,
                                 TypeLine = details.TypeLine,
                                 ImageUrl = details.ImageUrl,
@@ -134,14 +134,14 @@ namespace GameMicroservice.Infrastructure.Persistence
             await _col.ReplaceOneAsync(g => g.Id == session.Id, session);
         }
 
-        public async Task PlayCardAsync(string gameId, string cardName)
+        public async Task PlayCardAsync(string gameId, string cardId)
         {
             var session = await _col.Find(g => g.Id == gameId).FirstOrDefaultAsync()
                           ?? throw new InvalidOperationException("Partie introuvable");
 
             // Retire la carte de la main de l'active player
             var handKey = $"{session.ActivePlayerId}_hand";
-            var cardInHand = session.Zones[handKey].FirstOrDefault(c => c.CardName == cardName)
+            var cardInHand = session.Zones[handKey].FirstOrDefault(c => c.CardId == cardId)
                 ?? throw new InvalidOperationException("Carte non présente en main");
 
             // Ajoute au champ de bataille

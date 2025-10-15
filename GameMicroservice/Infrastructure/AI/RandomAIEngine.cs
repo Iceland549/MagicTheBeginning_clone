@@ -12,7 +12,7 @@ namespace GameMicroservice.Infrastructure.AI
         public PlayerActionDto? DecideNextAction(PlayerState aiState, GameSession session, List<CardInGame> hand)
         {
             Console.WriteLine($"[AI] Player {aiState.PlayerId} ManaPool: {string.Join(", ", aiState.ManaPool.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
-            Console.WriteLine($"[AI] Player {aiState.PlayerId} Hand: {string.Join(", ", hand.Select(c => $"{c.CardName}({c.ManaCost ?? "free"})"))}");
+            Console.WriteLine($"[AI] Player {aiState.PlayerId} Hand: {string.Join(", ", hand.Select(c => $"{c.CardId}({c.ManaCost ?? "free"})"))}");
 
             // 1️⃣ Priorité : jouer un terrain si possible et permis
             if (aiState.LandsPlayedThisTurn < 1)
@@ -20,19 +20,19 @@ namespace GameMicroservice.Infrastructure.AI
                 var land = hand.FirstOrDefault(c => c.TypeLine?.IndexOf("Land", StringComparison.OrdinalIgnoreCase) >= 0);
                 if (land != null)
                 {
-                    Console.WriteLine($"[AI] Choisit de jouer un terrain : {land.CardName}");
+                    Console.WriteLine($"[AI] Choisit de jouer un terrain : {land.CardId}");
                     return new PlayerActionDto
                     {
                         PlayerId = aiState.PlayerId,
                         Type = ActionType.PlayLand,
-                        CardName = land.CardName
+                        CardId = land.CardId
                     };
                 }
             }
 
             // 2️⃣ Cherche les cartes jouables selon le mana disponible
             var playable = GetPlayableCards(aiState, hand).ToList();
-            Console.WriteLine($"[AI] Cartes jouables : {string.Join(", ", playable.Select(c => c.CardName))}");
+            Console.WriteLine($"[AI] Cartes jouables : {string.Join(", ", playable.Select(c => c.CardId))}");
 
             if (playable.Any())
             {
@@ -42,12 +42,12 @@ namespace GameMicroservice.Infrastructure.AI
                     .ThenBy(c => c.TypeLine?.Contains("Creature") == true ? 0 : 1)
                     .First();
 
-                Console.WriteLine($"[AI] Joue : {best.CardName} (coût {best.ManaCost})");
+                Console.WriteLine($"[AI] Joue : {best.CardId} (coût {best.ManaCost})");
                 return new PlayerActionDto
                 {
                     PlayerId = aiState.PlayerId,
                     Type = ActionType.PlayCard,
-                    CardName = best.CardName
+                    CardId = best.CardId
                 };
             }
 

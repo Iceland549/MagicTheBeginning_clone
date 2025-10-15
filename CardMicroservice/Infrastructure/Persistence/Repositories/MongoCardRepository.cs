@@ -60,27 +60,16 @@ namespace CardMicroservice.Infrastructure.Persistence.Repositories
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
 
-            var filters = new List<FilterDefinition<CardDto>>
-    {
-        Builders<CardDto>.Filter.Eq(c => c.ScryfallId, id)
-    };
-
-            if (ObjectId.TryParse(id, out var objId))
-            {
-                // Filtre sur Id correspondant à _id MongoDB
-                filters.Add(Builders<CardDto>.Filter.Eq("_id", objId));
-            }
-
-            var filter = Builders<CardDto>.Filter.Or(filters);
-
+            var filter = Builders<CardDto>.Filter.Eq(c => c.Id, id);
             var card = await _col.Find(filter).FirstOrDefaultAsync();
+
             Console.WriteLine(card != null
                 ? $"[MongoRepo] ✅ Carte trouvée : {card.Name}"
                 : $"[MongoRepo] ❌ Carte non trouvée pour ID = {id}");
+
             return card;
+
         }
-
-
         /// <summary>
         /// Récupère une carte par nom, set, langue et collectorNumber.
         /// Sert notamment pour les imports depuis Scryfall.
@@ -118,6 +107,14 @@ namespace CardMicroservice.Infrastructure.Persistence.Repositories
 
             card.NormalizedName = NameNormalizer.Normalize(card.Name);
 
+            // Évite les doublons ScryfallId / Id
+            var existing = await _col.Find(Builders<CardDto>.Filter.Eq(c => c.Id, card.Id)).FirstOrDefaultAsync();
+            if (existing != null)
+            {
+                Console.WriteLine($"[MongoRepo] ⚠️ Carte déjà existante : {card.Name} ({card.Id}) — skip insert");
+                return;
+            }
+
             try
             {
                 await _col.InsertOneAsync(card);
@@ -130,6 +127,7 @@ namespace CardMicroservice.Infrastructure.Persistence.Repositories
             }
         }
 
+
         /// <summary>
         /// Supprime une carte à partir de son ID.
         /// </summary>
@@ -137,15 +135,13 @@ namespace CardMicroservice.Infrastructure.Persistence.Repositories
         {
             if (string.IsNullOrWhiteSpace(id)) return false;
 
-            var filter = Builders<CardDto>.Filter.Or(
-                Builders<CardDto>.Filter.Eq(c => c.ScryfallId, id),
-                Builders<CardDto>.Filter.Eq("_id", ObjectId.Parse(id))
-            );
-
+            var filter = Builders<CardDto>.Filter.Eq(c => c.Id, id);
             var result = await _col.DeleteOneAsync(filter);
+
             Console.WriteLine(result.DeletedCount > 0
                 ? $"[MongoRepo] 🗑️ Carte supprimée ID={id}"
                 : $"[MongoRepo] ❌ Aucune carte trouvée à supprimer pour ID={id}");
+
             return result.DeletedCount > 0;
         }
     }

@@ -5,9 +5,7 @@ import Library from './Library';
 import '../game-styles/PlayerZone.css';
 
 export default function PlayerZone({ playerId, zones, onPlayCard, isPlayable }) {
-  // const handKey = Object.keys(zones).find(
-  //   key => key.toLowerCase().includes('hand') && key.toLowerCase().includes(playerId.toLowerCase())
-  // );
+
   const handKey = Object.keys(zones).find(
   key => key.endsWith(`${playerId}_hand`)
   );

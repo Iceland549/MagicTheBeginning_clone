@@ -56,6 +56,9 @@ namespace CardMicroservice.Infrastructure.Scryfall
         [JsonPropertyName("lang")]
         public string Lang { get; set; } = string.Empty;
 
+        [JsonPropertyName("language")]
+        public string? Language { get; set; }
+
         [JsonPropertyName("released_at")]
         public string ReleasedAt { get; set; } = string.Empty;
 

@@ -57,7 +57,7 @@ export async function getGameState(gameId) {
       console.error('Authentication failed. Attempting token refresh...');
       try {
         await refreshToken();
-        const { data } = await api.get(`/games/${gameId}`); // Retry
+        const { data } = await api.get(`/games/${gameId}`); 
         return data;
       } catch (refreshError) {
         console.error('Token refresh failed, redirecting to login');
@@ -83,16 +83,18 @@ export async function playCard(gameId, playData) {
     }
     const PlayerId = playData.PlayerId || playData.playerId || localStorage.getItem('userId');
     const CardId = playData.CardId || playData.cardId || null;
-    const CardName = playData.CardName || playData.cardName || null;
     const Type = playData.Type || playData.type || null;
     if (!PlayerId || !Type) {
-      throw new Error(`Invalid playData: PlayerId=${PlayerId}, CardName=${CardName}, Type=${Type}`);
+      throw new Error(`Invalid playData: PlayerId=${PlayerId}, Type=${Type}`);
     }
-    if ((Type === 'PlayCard' || Type === 'PlayLand') && !CardId && !CardName) {
-      throw new Error(`Action ${Type} requires CardName (received: ${CardName})`);
+    if ((Type === 'PlayCard' || Type === 'PlayLand') && !CardId) {
+      throw new Error(`Action ${Type} requires CardId (received: ${CardId})`);
     }
-    console.log('Playing action:', JSON.stringify({ PlayerId, CardName, Type }, null, 2));
-    const { data } = await api.post(`/games/${gameId}/action`, { PlayerId, CardId, CardName, Type });
+    console.log('Playing action:', JSON.stringify({ PlayerId, Type }, null, 2));
+    const { data } = await api.post(`/games/${gameId}/action`, { PlayerId, CardId, Type });
+    if (data?.gameState || data?.GameState) {
+    return data.gameState || data.GameState;
+  }
     return data;
   } catch (error) {
     console.error('Play card error:', error.response?.data || error.message);

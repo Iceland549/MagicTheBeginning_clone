@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; 
 import { getAllCards } from '../cards/cardService';
-import { deleteCardByName } from '../cards/cardService'; 
-import { createDeck, getDecksByOwner, validateDeck } from './deckService';
+import { createDeck, getDecksByOwner, validateDeck, fetchAvailableCards } from './deckService';
 import { useSelection } from '../context/selectionContext';
 import { CardGrid } from '../cardGrid/CardGrid';
 import './DeckBuilder.css'; 
@@ -10,6 +9,7 @@ import './DeckBuilder.css';
 export default function DeckBuilder() {
   const { selection, clearSelection, addCard, removeCard } = useSelection();
   const navigate = useNavigate();
+  const [availableCards, setAvailableCards] = useState([]);
   const [cards, setCards] = useState([]);
   const [deckName, setDeckName] = useState('');
   const ownerId = localStorage.getItem('userId'); 
@@ -128,14 +128,17 @@ export default function DeckBuilder() {
     }
   };
 
-  const handleDeleteAvailableCard = async (card) => {
-    try {
-      await deleteCardByName(card.name);
-      setCards(prev => prev.filter(c => c.name !== card.name)); 
-      removeCard(card); 
-    } catch (e) {
-      alert("Erreur lors de la suppression : " + (e.response?.data || e.message));
-    }
+  const handleDeleteAvailableCard = (card) => {
+    // Supprime simplement la carte de l’affichage localement
+    setCards(prev => prev.filter(c => c.name !== card.name));
+
+    // Supprime aussi du contexte de sélection au cas où
+    removeCard(card);
+
+    const hidden = JSON.parse(localStorage.getItem("hiddenCards") || "[]");
+    localStorage.setItem("hiddenCards", JSON.stringify([...hidden, card.name]));
+
+    console.log(`[FrontendOnly] Carte ${card.name} masquée localement`);  
   };
 
   console.log('Current selection:', JSON.stringify(selection, null, 2));

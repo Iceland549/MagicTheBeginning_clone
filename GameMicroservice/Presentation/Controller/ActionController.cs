@@ -1,6 +1,6 @@
 ﻿using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.UseCases;
-using GameMicroservice.Infrastructure;
+using GameMicroservice.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -80,23 +80,19 @@ namespace GameMicroservice.Presentation.Controllers
             try
             {
                 // 🔍 Ajout : récupération du CardId si manquant
-                if (string.IsNullOrEmpty(action.CardId) && !string.IsNullOrEmpty(action.CardName))
-                {
-                    var card = await _cardClient.GetCardByNameAsync(action.CardName);
-                    if (card != null)
-                    {
-                        action.CardId = card.Id;
-                        Console.WriteLine($"[ActionController] CardId trouvé pour {action.CardName}: {action.CardId}");
-                    }
-                }
-                var effectiveCardIdOrName = action.CardId ?? action.CardName;
+                if (string.IsNullOrEmpty(action.CardId) &&
+                    action.Type != ActionType.Draw &&
+                    action.Type != ActionType.PassToMain &&
+                    action.Type != ActionType.PassToCombat &&
+                    action.Type != ActionType.PreEnd &&
+                    action.Type != ActionType.EndTurn)
+                    return BadRequest("CardId is required for this action.");
 
-                if (string.IsNullOrEmpty(effectiveCardIdOrName))
-                    return BadRequest("CardId or CardName is required for this action.");
+                Console.WriteLine($"[ActionController] Received Action Type: {action.Type} (Int: {(int)action.Type})");
 
                 ActionResultDto result = action.Type switch
                 {
-                    ActionType.PlayLand => await _playLand.ExecuteAsync(gameId, action.PlayerId, effectiveCardIdOrName),
+                    ActionType.PlayLand => await _playLand.ExecuteAsync(gameId, action.PlayerId, action.CardId!),
                     ActionType.PlayCard => await _playCard.ExecuteAsync(gameId, action.PlayerId, action),
                     ActionType.Attack => await _attack.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
                     ActionType.Block => await _block.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),

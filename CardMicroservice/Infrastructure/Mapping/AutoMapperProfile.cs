@@ -12,7 +12,8 @@ namespace CardMicroservice.Infrastructure.Mapping
         {
             CreateMap<ScryfallCardDto, CardDto>()
                 .ForMember(dst => dst.NormalizedName, opt => opt.Ignore())
-                .ForMember(dst => dst.ScryfallId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id))
+                //.ForMember(dst => dst.ScryfallId, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dst => dst.Name, opt => opt.MapFrom(src => src.Name))
                 .ForMember(dst => dst.ManaCost, opt => opt.MapFrom(src => src.ManaCost))
                 .ForMember(dst => dst.TypeLine, opt => opt.MapFrom(src => src.TypeLine))
@@ -29,7 +30,7 @@ namespace CardMicroservice.Infrastructure.Mapping
                 .ForMember(dst => dst.MtgoFoilId, opt => opt.MapFrom(src => src.MtgoFoilId))
                 .ForMember(dst => dst.TcgplayerId, opt => opt.MapFrom(src => src.TcgplayerId))
                 .ForMember(dst => dst.CardmarketId, opt => opt.MapFrom(src => src.CardmarketId))
-                .ForMember(dst => dst.Lang, opt => opt.MapFrom(src => src.Lang))
+                .ForMember(dst => dst.Lang, opt => opt.MapFrom(src => src.Lang ?? src.Language))
                 .ForMember(dst => dst.ReleasedAt, opt => opt.MapFrom(src => src.ReleasedAt))
                 .ForMember(dst => dst.Uri, opt => opt.MapFrom(src => src.Uri))
                 .ForMember(dst => dst.ScryfallUri, opt => opt.MapFrom(src => src.ScryfallUri))

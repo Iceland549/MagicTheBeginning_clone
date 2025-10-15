@@ -22,7 +22,7 @@ namespace GameMicroservice.Infrastructure.Mapping
                 .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.ImageUrl))
                 .ForMember(dest => dest.TypeLine, opt => opt.MapFrom(src => src.TypeLine))
                 .ForMember(dest => dest.ManaCost, opt => opt.MapFrom(src => src.ManaCost))
-                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.CardName));
+                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.CardId));
 
             CreateMap<CardInGameDto, CardInGame>()
                 .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.ImageUrl))

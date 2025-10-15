@@ -1,7 +1,6 @@
 ﻿using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.Interfaces;
 using GameMicroservice.Domain;
-using GameMicroservice.Infrastructure;
 using GameMicroservice.Infrastructure.Persistence.Entities;
 using System;
 using System.Collections.Generic;
@@ -10,6 +9,10 @@ using System.Threading.Tasks;
 
 namespace GameMicroservice.Application.UseCases
 {
+    /// <summary>
+    /// Game rules engine. All logic uses CardId to fetch card metadata from Card service.
+    /// CardInGame must include CardId (unique) and may include CardName for UI purposes.
+    /// </summary>
     public class GameRulesEngine : IGameRulesEngine
     {
         private readonly ICardClient _cardClient;
@@ -65,19 +68,22 @@ namespace GameMicroservice.Application.UseCases
                    s.Players.First(p => p.PlayerId == playerId).LandsPlayedThisTurn < 1;
         }
 
-        public async Task ValidatePlayLandAsync(GameSession s, string playerId, string cardName)
+        /// <summary>
+        /// Validate that a card (by cardId) can be played as a land for the given player/session.
+        /// </summary>
+        public async Task ValidatePlayLandAsync(GameSession s, string playerId, string cardId)
         {
             if (!IsLandPhase(s, playerId))
                 throw new InvalidOperationException("Cannot play land now");
 
             var handKey = $"{playerId}_hand";
-            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardName == cardName))
+            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardId == cardId))
                 throw new InvalidOperationException("Card not in hand");
 
-            var card = await _cardClient.GetCardByNameAsync(cardName)
+            var card = await _cardClient.GetCardByIdAsync(cardId)
                 ?? throw new KeyNotFoundException("Card not found");
 
-            if (!card.TypeLine.Contains("Land"))
+            if (card.TypeLine == null || !card.TypeLine.Contains("Land", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Card is not a land");
 
             var player = s.Players.First(p => p.PlayerId == playerId);
@@ -85,13 +91,15 @@ namespace GameMicroservice.Application.UseCases
                 throw new InvalidOperationException("Only one land per turn allowed");
         }
 
-        // Keep a synchronous helper (existing code uses synchronous PlayLand in several places)
-        public GameSession PlayLand(GameSession s, string playerId, string cardName)
+        /// <summary>
+        /// Play a land (synchronous helper used by some flows). Moves card from hand to battlefield and triggers landfall.
+        /// </summary>
+        public GameSession PlayLand(GameSession s, string playerId, string cardId)
         {
             var handKey = $"{playerId}_hand";
             var battlefieldKey = $"{playerId}_battlefield";
 
-            var card = s.Zones[handKey].FirstOrDefault(c => c.CardName == cardName)
+            var card = s.Zones[handKey].FirstOrDefault(c => c.CardId == cardId)
                 ?? throw new InvalidOperationException("Card not found in hand");
 
             // move card: hand -> battlefield
@@ -101,39 +109,42 @@ namespace GameMicroservice.Application.UseCases
             var player = s.Players.First(p => p.PlayerId == playerId);
             player.LandsPlayedThisTurn++;
 
-            // Ensure the CardInGame has TypeLine (useful if object in session is "light")
-            if (string.IsNullOrEmpty(card.TypeLine))
+            // Ensure the CardInGame has TypeLine / ManaCost (best-effort fill)
+            if (string.IsNullOrEmpty(card.TypeLine) || string.IsNullOrEmpty(card.ManaCost))
             {
                 try
                 {
-                    var details = _cardClient.GetCardByNameAsync(cardName).GetAwaiter().GetResult();
+                    var details = _cardClient.GetCardByIdAsync(cardId).GetAwaiter().GetResult();
                     if (details != null)
                     {
                         card.TypeLine = card.TypeLine ?? details.TypeLine;
                         card.ManaCost = card.ManaCost ?? details.ManaCost;
+                        // keep CardName for display
+                        card.CardId = card.CardId ?? details.Name;
                     }
                 }
                 catch
                 {
-                    // best-effort, fail safe: if we can't fetch details, proceed without throwing
+                    // best-effort: do not fail the game flow if metadata fetch fails
                 }
             }
 
-            return OnLandfall(s, playerId, cardName);
+            return OnLandfall(s, playerId, cardId);
         }
 
-        // Async wrapper to respect IGameRulesEngine signature if interface expects PlayLandAsync
-        public Task<GameSession> PlayLandAsync(GameSession s, string playerId, string cardName)
+        public Task<GameSession> PlayLandAsync(GameSession s, string playerId, string cardId)
         {
-            var result = PlayLand(s, playerId, cardName);
-            return Task.FromResult(result);
+            return Task.FromResult(PlayLand(s, playerId, cardId));
         }
 
-        public GameSession OnLandfall(GameSession s, string playerId, string cardName)
+        /// <summary>
+        /// Apply landfall effects: increment player's mana pool according to land type.
+        /// </summary>
+        public GameSession OnLandfall(GameSession s, string playerId, string cardId)
         {
             var battlefieldKey = $"{playerId}_battlefield";
             var player = s.Players.First(p => p.PlayerId == playerId);
-            var landCard = s.Zones[battlefieldKey].FirstOrDefault(c => c.CardName == cardName);
+            var landCard = s.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == cardId);
 
             if (landCard == null)
                 throw new InvalidOperationException("Land not found on battlefield");
@@ -159,47 +170,61 @@ namespace GameMicroservice.Application.UseCases
         public bool IsMainPhase(GameSession s, string playerId)
             => s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId;
 
-        public async Task ValidatePlayAsync(GameSession s, string playerId, string cardName)
+        public async Task ValidatePlayAsync(GameSession s, string playerId, string cardId)
         {
             if (!IsMainPhase(s, playerId))
                 throw new InvalidOperationException("Not in Main phase");
 
             var handKey = $"{playerId}_hand";
-            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardName == cardName))
+            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardId == cardId))
                 throw new InvalidOperationException("Card not in hand");
 
-            var card = await _cardClient.GetCardByNameAsync(cardName)
+            var card = await _cardClient.GetCardByIdAsync(cardId)
                 ?? throw new KeyNotFoundException("Card not found");
 
             if (!CanPayManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, card.ManaCost))
                 throw new InvalidOperationException("Insufficient mana to cast this card");
         }
 
-        public async Task<GameSession> PlayCardAsync(GameSession s, string playerId, string cardName)
+        /// <summary>
+        /// Play a non-land spell (cardId) - removes from hand and places on battlefield (or resolves).
+        /// </summary>
+        public async Task<GameSession> PlayCardAsync(GameSession s, string playerId, string cardId)
         {
-            await ValidatePlayAsync(s, playerId, cardName);
+            await ValidatePlayAsync(s, playerId, cardId);
 
             var handKey = $"{playerId}_hand";
             var battlefieldKey = $"{playerId}_battlefield";
 
-            var cardInHand = s.Zones[handKey].FirstOrDefault(c => c.CardName == cardName);
+            var cardInHand = s.Zones[handKey].FirstOrDefault(c => c.CardId == cardId);
             if (cardInHand == null)
                 throw new InvalidOperationException("Card not found in hand");
 
-            // Remove from hand, create in-game instance
-            s.Zones[handKey].Remove(cardInHand);
-            var cardOnBattlefield = new CardInGame(cardName) { HasSummoningSickness = true };
-            s.Zones[battlefieldKey].Add(cardOnBattlefield);
-
-            var cardDetails = await _cardClient.GetCardByNameAsync(cardName)
+            // fetch card metadata
+            var cardDetails = await _cardClient.GetCardByIdAsync(cardId)
                 ?? throw new KeyNotFoundException("Card not found");
 
             // Deduct mana
             DeductManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, cardDetails.ManaCost);
 
-            // Optionally fill metadata on in-game instance
-            cardOnBattlefield.TypeLine = cardDetails.TypeLine;
-            cardOnBattlefield.ManaCost = cardDetails.ManaCost;
+            // Remove from hand
+            s.Zones[handKey].Remove(cardInHand);
+
+            // Create in-game instance with metadata
+            var cardOnBattlefield = new CardInGame
+            {
+                CardId = cardDetails.Id,
+                Name = cardDetails.Name,
+                TypeLine = cardDetails.TypeLine,
+                ManaCost = cardDetails.ManaCost,
+                ImageUrl = cardDetails.ImageUrl,
+                Power = cardDetails.Power,
+                Toughness = cardDetails.Toughness,
+                IsTapped = false,
+                HasSummoningSickness = true
+            };
+
+            s.Zones[battlefieldKey].Add(cardOnBattlefield);
 
             return s;
         }
@@ -207,48 +232,56 @@ namespace GameMicroservice.Application.UseCases
         public bool IsSpellPhase(GameSession s, string playerId)
             => s.CurrentPhase == Phase.Main || s.CurrentPhase == Phase.Combat;
 
-        public async Task ValidateInstantAsync(GameSession s, string playerId, string cardName)
+        public async Task ValidateInstantAsync(GameSession s, string playerId, string cardId)
         {
             if (!IsSpellPhase(s, playerId))
                 throw new InvalidOperationException("Cannot cast instant now");
 
             var handKey = $"{playerId}_hand";
-            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardName == cardName))
+            if (!s.Zones.ContainsKey(handKey) || !s.Zones[handKey].Any(c => c.CardId == cardId))
                 throw new InvalidOperationException("Card not in hand");
 
-            var card = await _cardClient.GetCardByNameAsync(cardName)
+            var card = await _cardClient.GetCardByIdAsync(cardId)
                 ?? throw new KeyNotFoundException("Card not found");
 
-            if (!card.TypeLine.Contains("Instant"))
+            if (card.TypeLine == null || !card.TypeLine.Contains("Instant", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Card is not an instant");
 
             if (!CanPayManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, card.ManaCost))
                 throw new InvalidOperationException("Insufficient mana to cast this instant");
         }
 
-        public async Task<GameSession> CastInstantAsync(GameSession s, string playerId, string cardName, string? targetId)
+        public async Task<GameSession> CastInstantAsync(GameSession s, string playerId, string cardId, string? targetId)
         {
-            await ValidateInstantAsync(s, playerId, cardName);
+            await ValidateInstantAsync(s, playerId, cardId);
 
             var handKey = $"{playerId}_hand";
             var battlefieldKey = $"{playerId}_battlefield";
 
-            var cardInHand = s.Zones[handKey].FirstOrDefault(c => c.CardName == cardName)
+            var cardInHand = s.Zones[handKey].FirstOrDefault(c => c.CardId == cardId)
                 ?? throw new InvalidOperationException("Card not in hand");
 
-            s.Zones[handKey].Remove(cardInHand);
-            var cardOnBattlefield = new CardInGame(cardName) { HasSummoningSickness = true };
-            s.Zones[battlefieldKey].Add(cardOnBattlefield);
-
-            var cardDetails = await _cardClient.GetCardByNameAsync(cardName)
+            // fetch details
+            var cardDetails = await _cardClient.GetCardByIdAsync(cardId)
                 ?? throw new KeyNotFoundException("Card not found");
 
+            // deduct mana
             DeductManaCost(s.Players.First(p => p.PlayerId == playerId).ManaPool, cardDetails.ManaCost);
 
-            cardOnBattlefield.TypeLine = cardDetails.TypeLine;
-            cardOnBattlefield.ManaCost = cardDetails.ManaCost;
+            // move to battlefield (or resolve depending on rules - here we put on battlefield)
+            s.Zones[handKey].Remove(cardInHand);
+            var cardOnBattlefield = new CardInGame
+            {
+                CardId = cardDetails.Id,
+                Name = cardDetails.Name,
+                TypeLine = cardDetails.TypeLine,
+                ManaCost = cardDetails.ManaCost,
+                IsTapped = false,
+                HasSummoningSickness = true
+            };
+            s.Zones[battlefieldKey].Add(cardOnBattlefield);
 
-            // targetId handling left to higher-level logic (effects, damage, etc.)
+            // target handling left to higher-level effects
             return s;
         }
 
@@ -267,26 +300,33 @@ namespace GameMicroservice.Application.UseCases
         public bool IsCombatPhase(GameSession s, string playerId)
             => s.CurrentPhase == Phase.Combat && s.ActivePlayerId == playerId;
 
+        /// <summary>
+        /// attackers is a list of CardIds.
+        /// </summary>
         public async Task ValidateAttackAsync(GameSession s, string playerId, List<string> attackers)
         {
             if (!IsCombatPhase(s, playerId))
                 throw new InvalidOperationException("Not in Combat phase");
 
             var battlefieldKey = $"{playerId}_battlefield";
-            foreach (var cardName in attackers)
+            foreach (var cardId in attackers)
             {
-                var cardInGame = s.Zones[battlefieldKey].FirstOrDefault(c => c.CardName == cardName)
-                    ?? throw new InvalidOperationException($"Card {cardName} not on battlefield");
+                var cardInGame = s.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == cardId)
+                    ?? throw new InvalidOperationException($"Card {cardId} not on battlefield");
                 if (cardInGame.IsTapped || cardInGame.HasSummoningSickness)
-                    throw new InvalidOperationException($"Card {cardName} cannot attack");
+                    throw new InvalidOperationException($"Card {cardId} cannot attack");
 
-                var details = await _cardClient.GetCardByNameAsync(cardName)
-                    ?? throw new KeyNotFoundException($"Card {cardName} not found");
-                if (!details.TypeLine.Contains("Creature"))
-                    throw new InvalidOperationException($"Card {cardName} is not a creature and cannot attack");
+                var details = await _cardClient.GetCardByIdAsync(cardId)
+                    ?? throw new KeyNotFoundException($"Card {cardId} not found");
+                if (details.TypeLine == null || !details.TypeLine.Contains("Creature", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"Card {cardId} is not a creature and cannot attack");
             }
         }
 
+        /// <summary>
+        /// blockers: Dictionary<attackerCardId, blockerCardId>
+        /// attackers: list of attacker CardIds
+        /// </summary>
         public async Task<GameSession> ResolveCombatAsync(GameSession s, string playerId, List<string> attackers, Dictionary<string, string> blockers)
         {
             await ValidateAttackAsync(s, playerId, attackers);
@@ -300,17 +340,17 @@ namespace GameMicroservice.Application.UseCases
             // Handle pairwise attacker vs blocker exchanges
             foreach (var kvp in blockers)
             {
-                var attackerName = kvp.Key;
-                var blockerName = kvp.Value;
+                var attackerId = kvp.Key;
+                var blockerId = kvp.Value;
 
-                var attackerCard = s.Zones[myBattlefieldKey].FirstOrDefault(c => c.CardName == attackerName)
-                    ?? throw new InvalidOperationException($"Attacker {attackerName} not on battlefield");
-                var blockerCard = s.Zones[opponentBattlefieldKey].FirstOrDefault(c => c.CardName == blockerName)
-                    ?? throw new InvalidOperationException($"Blocker {blockerName} not on battlefield");
+                var attackerCard = s.Zones[myBattlefieldKey].FirstOrDefault(c => c.CardId == attackerId)
+                    ?? throw new InvalidOperationException($"Attacker {attackerId} not on battlefield");
+                var blockerCard = s.Zones[opponentBattlefieldKey].FirstOrDefault(c => c.CardId == blockerId)
+                    ?? throw new InvalidOperationException($"Blocker {blockerId} not on battlefield");
 
-                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerName)
+                var attackerDetails = await _cardClient.GetCardByIdAsync(attackerId)
                     ?? throw new KeyNotFoundException("Attacker card not found");
-                var blockerDetails = await _cardClient.GetCardByNameAsync(blockerName)
+                var blockerDetails = await _cardClient.GetCardByIdAsync(blockerId)
                     ?? throw new KeyNotFoundException("Blocker card not found");
 
                 if ((attackerDetails.Power ?? 0) >= (blockerDetails.Toughness ?? int.MaxValue))
@@ -329,9 +369,9 @@ namespace GameMicroservice.Application.UseCases
             // Unblocked attackers deal damage to opponent player
             var unblocked = attackers.Where(a => !blockers.ContainsKey(a)).ToList();
             var opponent = s.Players.First(p => p.PlayerId == opponentId);
-            foreach (var attackerName in unblocked)
+            foreach (var attackerId in unblocked)
             {
-                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerName)
+                var attackerDetails = await _cardClient.GetCardByIdAsync(attackerId)
                     ?? throw new KeyNotFoundException("Attacker card not found");
                 opponent.LifeTotal -= attackerDetails.Power ?? 0;
             }
@@ -384,6 +424,9 @@ namespace GameMicroservice.Application.UseCases
         public bool IsBlockPhase(GameSession session, string playerId)
             => session.CurrentPhase == Phase.Combat && session.ActivePlayerId != playerId;
 
+        /// <summary>
+        /// blockers values are blocker CardIds
+        /// </summary>
         public async Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
         {
             if (!IsBlockPhase(session, playerId))
@@ -391,27 +434,30 @@ namespace GameMicroservice.Application.UseCases
 
             var battlefieldKey = $"{playerId}_battlefield";
 
-            foreach (var blocker in blockers.Values)
+            foreach (var blockerId in blockers.Values)
             {
-                var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardName == blocker);
+                var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == blockerId);
                 if (blockerCard == null)
-                    throw new InvalidOperationException($"Blocker {blocker} not on battlefield");
+                    throw new InvalidOperationException($"Blocker {blockerId} not on battlefield");
                 if (blockerCard.IsTapped)
-                    throw new InvalidOperationException($"Blocker {blocker} is tapped");
+                    throw new InvalidOperationException($"Blocker {blockerId} is tapped");
 
-                var details = await _cardClient.GetCardByNameAsync(blocker)
+                var details = await _cardClient.GetCardByIdAsync(blockerId)
                     ?? throw new KeyNotFoundException("Blocker not found");
-                if (details.TypeLine == null || !details.TypeLine.Contains("Creature"))
-                    throw new InvalidOperationException($"Blocker {blocker} is not a creature");
+                if (details.TypeLine == null || !details.TypeLine.Contains("Creature", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"Blocker {blockerId} is not a creature");
             }
         }
 
         public Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
         {
-            // For now delegate to ResolveCombatAsync in game flow; keep API compliant
+            // For now delegate to combat resolution or keep as a no-op wrapper
             return Task.FromResult(session);
         }
 
+        /// <summary>
+        /// Discard logic based on cardIds; blockers param is used similarly.
+        /// </summary>
         public async Task<GameSession> DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard, Dictionary<string, string> blockers)
         {
             var opponentId = session.PlayerOneId == playerId ? session.PlayerTwoId : session.PlayerOneId;
@@ -421,13 +467,13 @@ namespace GameMicroservice.Application.UseCases
                 var attackerId = kvp.Key;
                 var blockerId = kvp.Value;
 
-                var attacker = session.Zones[$"{opponentId}_battlefield"].FirstOrDefault(c => c.CardName == attackerId);
-                var blocker = session.Zones[$"{playerId}_battlefield"].FirstOrDefault(c => c.CardName == blockerId);
+                var attacker = session.Zones[$"{opponentId}_battlefield"].FirstOrDefault(c => c.CardId == attackerId);
+                var blocker = session.Zones[$"{playerId}_battlefield"].FirstOrDefault(c => c.CardId == blockerId);
 
                 if (attacker == null || blocker == null) continue;
 
-                var attackerDetails = await _cardClient.GetCardByNameAsync(attackerId) ?? throw new InvalidOperationException("Attacker not found");
-                var blockerDetails = await _cardClient.GetCardByNameAsync(blockerId) ?? throw new InvalidOperationException("Blocker not found");
+                var attackerDetails = await _cardClient.GetCardByIdAsync(attackerId) ?? throw new InvalidOperationException("Attacker not found");
+                var blockerDetails = await _cardClient.GetCardByIdAsync(blockerId) ?? throw new InvalidOperationException("Blocker not found");
 
                 if ((attackerDetails.Power ?? 0) >= (blockerDetails.Toughness ?? int.MaxValue))
                 {
@@ -438,6 +484,21 @@ namespace GameMicroservice.Application.UseCases
                 {
                     session.Zones[$"{opponentId}_battlefield"].Remove(attacker);
                     session.Zones[$"{opponentId}_graveyard"].Add(attacker);
+                }
+            }
+
+            // Additionally, process explicit discards from cardsToDiscard (list of CardIds)
+            if (cardsToDiscard != null && cardsToDiscard.Count > 0)
+            {
+                var handKey = $"{playerId}_hand";
+                foreach (var discardId in cardsToDiscard)
+                {
+                    var card = session.Zones[handKey].FirstOrDefault(c => c.CardId == discardId);
+                    if (card != null)
+                    {
+                        session.Zones[handKey].Remove(card);
+                        session.Zones[$"{playerId}_graveyard"].Add(card);
+                    }
                 }
             }
 
@@ -471,7 +532,7 @@ namespace GameMicroservice.Application.UseCases
                 return new EndGameDto
                 {
                     WinnerId = winner.PlayerId,
-                    Reason = $"Le joueur {loser.PlayerId} a 0 PV."
+                    Reason = $"Player {loser.PlayerId} has 0 life."
                 };
             }
 
@@ -484,7 +545,7 @@ namespace GameMicroservice.Application.UseCases
                     return new EndGameDto
                     {
                         WinnerId = winner.PlayerId,
-                        Reason = $"Le joueur {player.PlayerId} n’a plus de cartes à piocher."
+                        Reason = $"Player {player.PlayerId} has no cards to draw."
                     };
                 }
             }
@@ -527,7 +588,7 @@ namespace GameMicroservice.Application.UseCases
                                 "R" => "Red",
                                 "G" => "Green",
                                 "C" => "Colorless",
-                                _ => throw new InvalidOperationException($"Unknown mana symbol: {token}")
+                                _ => "Colorless"
                             };
                             dict[color] = dict.GetValueOrDefault(color, 0) + 1;
                         }
@@ -561,7 +622,7 @@ namespace GameMicroservice.Application.UseCases
                             "R" => "Red",
                             "G" => "Green",
                             "C" => "Colorless",
-                            _ => throw new InvalidOperationException($"Unknown mana symbol: {symbol}")
+                            _ => "Colorless"
                         };
                         dict[color] = dict.GetValueOrDefault(color, 0) + 1;
                         i++;

@@ -8,12 +8,12 @@ namespace CardMicroservice.Application.DTOs
     public class CardDto
     {
         [BsonId] // utilisé par MongoDB pour son _id interne
-        [BsonRepresentation(BsonType.ObjectId)]
-        [JsonIgnore] 
-        public string? Id { get; set; }
+        [BsonRepresentation(BsonType.String)]
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
 
-        [JsonPropertyName("id")] // correspond à l’ID Scryfall
-        public string ScryfallId { get; set; } = null!;
+        //[JsonPropertyName("id")] // correspond à l’ID Scryfall
+        //public string ScryfallId { get; set; } = null!;
 
         [BsonElement("normalizedName")]
         [JsonIgnore] 

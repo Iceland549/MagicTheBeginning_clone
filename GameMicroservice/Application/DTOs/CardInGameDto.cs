@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using MongoDB.Bson.Serialization.Attributes;
+using System.Text.Json.Serialization;
 
 namespace GameMicroservice.Application.DTOs
 {
@@ -7,6 +8,9 @@ namespace GameMicroservice.Application.DTOs
     /// </summary>
     public class CardInGameDto
     {
+        [BsonElement("cardId")]
+        public string CardId { get; set; } = null!;
+
         [JsonPropertyName("cardName")]
         public string CardName { get; set; } = null!;
 

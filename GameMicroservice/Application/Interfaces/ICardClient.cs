@@ -1,9 +1,10 @@
 ﻿using System.Threading.Tasks;
 using GameMicroservice.Application.DTOs;
-namespace GameMicroservice.Infrastructure
+
+namespace GameMicroservice.Application.Interfaces
 {
     public interface ICardClient
     {
-        Task<CardDto?> GetCardByNameAsync(string name);
+        Task<CardDto?> GetCardByIdAsync(string cardId);
     }
 }

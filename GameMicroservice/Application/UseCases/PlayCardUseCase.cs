@@ -39,32 +39,32 @@ namespace GameMicroservice.Application.UseCases
                     case ActionType.PlayLand:
                         if (!_engine.IsLandPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Pas la phase de terrain" };
-                        if (string.IsNullOrEmpty(action.CardName))
+                        if (string.IsNullOrEmpty(action.CardId))
                             return new ActionResultDto { Success = false, Message = "CardName requis pour PlayLand" };
 
-                        await _engine.ValidatePlayLandAsync(sessionEntity, playerId, action.CardName);
-                        sessionEntity = _engine.PlayLand(sessionEntity, playerId, action.CardName);
-                        sessionEntity = _engine.OnLandfall(sessionEntity, playerId, action.CardName);
+                        await _engine.ValidatePlayLandAsync(sessionEntity, playerId, action.CardId);
+                        sessionEntity = _engine.PlayLand(sessionEntity, playerId, action.CardId);
+                        sessionEntity = _engine.OnLandfall(sessionEntity, playerId, action.CardId);
                         break;
 
                     case ActionType.PlayCard:
                         if (!_engine.IsMainPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Pas la phase principale" };
-                        if (string.IsNullOrEmpty(action.CardName))
+                        if (string.IsNullOrEmpty(action.CardId))
                             return new ActionResultDto { Success = false, Message = "CardName requis pour PlayCard" };
 
-                        await _engine.ValidatePlayAsync(sessionEntity, playerId, action.CardName);
-                        sessionEntity = await _engine.PlayCardAsync(sessionEntity, playerId, action.CardName);
+                        await _engine.ValidatePlayAsync(sessionEntity, playerId, action.CardId);
+                        sessionEntity = await _engine.PlayCardAsync(sessionEntity, playerId, action.CardId);
                         break;
 
                     case ActionType.CastInstant:
                         if (!_engine.IsSpellPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Pas la phase de sorts" };
-                        if (string.IsNullOrEmpty(action.CardName))
+                        if (string.IsNullOrEmpty(action.CardId))
                             return new ActionResultDto { Success = false, Message = "CardName requis pour CastInstant" };
 
-                        await _engine.ValidateInstantAsync(sessionEntity, playerId, action.CardName);
-                        sessionEntity = await _engine.CastInstantAsync(sessionEntity, playerId, action.CardName, action.TargetId);
+                        await _engine.ValidateInstantAsync(sessionEntity, playerId, action.CardId);
+                        sessionEntity = await _engine.CastInstantAsync(sessionEntity, playerId, action.CardId, action.TargetId);
                         break;
 
                     case ActionType.PassToCombat:
