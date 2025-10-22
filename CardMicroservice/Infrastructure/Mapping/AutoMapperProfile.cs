@@ -13,7 +13,7 @@ namespace CardMicroservice.Infrastructure.Mapping
             CreateMap<ScryfallCardDto, CardDto>()
                 .ForMember(dst => dst.NormalizedName, opt => opt.Ignore())
                 .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id))
-                //.ForMember(dst => dst.ScryfallId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dst => dst.Lang, opt => opt.MapFrom(src => src.Lang ?? src.Language))
                 .ForMember(dst => dst.Name, opt => opt.MapFrom(src => src.Name))
                 .ForMember(dst => dst.ManaCost, opt => opt.MapFrom(src => src.ManaCost))
                 .ForMember(dst => dst.TypeLine, opt => opt.MapFrom(src => src.TypeLine))
@@ -88,13 +88,13 @@ namespace CardMicroservice.Infrastructure.Mapping
                 .ForMember(dst => dst.PurchaseUris, opt => opt.MapFrom(src => src.PurchaseUris))
                 .ForMember(dst => dst.Abilities, opt => opt.MapFrom(src => src.Keywords ?? new List<string>()));
 
-            CreateMap<CardEntity, CardDto>()
-                .ForMember(dst => dst.Lang, opt => opt.MapFrom(src => src.Language))
-                .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id));
+            //CreateMap<CardEntity, CardDto>()
+            //    .ForMember(dst => dst.Lang, opt => opt.MapFrom(src => src.Language))
+            //    .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id));
 
-            CreateMap<CardDto, CardEntity>()
-                .ForMember(dst => dst.Language, opt => opt.MapFrom(src => src.Lang))
-                .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id));
+            //CreateMap<CardDto, CardEntity>()
+            //    .ForMember(dst => dst.Language, opt => opt.MapFrom(src => src.Lang))
+            //    .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id));
         }
     }
 

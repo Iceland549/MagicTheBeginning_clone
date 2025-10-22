@@ -86,7 +86,7 @@ namespace CardMicroservice.Application.DTOs
         public Dictionary<string, string>? ImageUris { get; set; }
 
         [JsonPropertyName("cmc")]
-        public int Cmc { get; set; } // Corrigé en int pour compatibilité
+        public int Cmc { get; set; } 
 
         [JsonPropertyName("colors")]
         public List<string> Colors { get; set; } = new();

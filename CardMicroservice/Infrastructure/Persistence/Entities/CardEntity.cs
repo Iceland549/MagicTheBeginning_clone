@@ -59,8 +59,8 @@ namespace CardMicroservice.Infrastructure.Persistence.Entities
         [BsonElement("cardmarket_id")]
         public int? CardmarketId { get; set; }
 
-        [BsonElement("lang")]
-        public string Language { get; set; } = null!;
+        //[BsonElement("lang")]
+        //public string Language { get; set; } = null!;
 
         [BsonElement("released_at")]
         public string ReleasedAt { get; set; } = null!;
