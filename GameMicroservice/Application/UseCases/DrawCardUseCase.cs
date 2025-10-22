@@ -2,89 +2,57 @@
 using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.Interfaces;
 using GameMicroservice.Domain;
+using System;
 using System.Threading.Tasks;
 
 namespace GameMicroservice.Application.UseCases
 {
     public class DrawCardUseCase
     {
+        private readonly ILogger<DrawCardUseCase> _logger;
         private readonly IGameSessionRepository _repo;
         private readonly IGameRulesEngine _engine;
         private readonly IMapper _mapper;
 
-        public DrawCardUseCase(IGameSessionRepository repo, IGameRulesEngine engine, IMapper mapper)
+        public DrawCardUseCase(IGameSessionRepository repo, IGameRulesEngine engine, IMapper mapper, ILogger<DrawCardUseCase> logger)
         {
-            _repo = repo;
-            _engine = engine;
-            _mapper = mapper;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+            _engine = engine ?? throw new ArgumentNullException(nameof(engine));
+            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
         public async Task<ActionResultDto> ExecuteAsync(string sessionId, string playerId)
         {
-            Console.WriteLine($"[DrawCardUseCase] Start: SessionId={sessionId}, Player={playerId}");
+            _logger.LogInformation("[DrawCardUseCase] START");
 
-            var session = await _repo.GetByIdAsync(sessionId);
-            if (session == null)
-            {
-                Console.WriteLine($"[DrawCardUseCase] ERREUR: Session introuvable pour Id={sessionId}");
-                return new ActionResultDto { Success = false, Message = "Session introuvable" };
-            }
+            var session = await _engine.LoadSessionAsync(sessionId);
 
-            Console.WriteLine($"[DrawCardUseCase] Session trouvée: Phase={session.CurrentPhase}, ActivePlayer={session.ActivePlayerId}, Turn={session.TurnNumber}");
-
-            if (session.ActivePlayerId != playerId)
-                return new ActionResultDto { Success = false, Message = "Ce n’est pas le tour du joueur" };
-
-            var handKey = $"{playerId}_hand";
             var libraryKey = $"{playerId}_library";
+            var handKey = $"{playerId}_hand";
 
-            if (!session.Zones.ContainsKey(handKey) || !session.Zones.ContainsKey(libraryKey))
-                return new ActionResultDto { Success = false, Message = "Zones de jeu incohérentes" };
+            _logger.LogDebug("[DrawCardUseCase] Library count BEFORE: {Count}",
+                session.Zones[libraryKey].Count);
+            _logger.LogDebug("[DrawCardUseCase] Hand count BEFORE: {Count}",
+                session.Zones[handKey].Count);
 
-            var hand = session.Zones[handKey];
-            var deck = session.Zones[libraryKey];
+            var cardToDraw = session.Zones[libraryKey].FirstOrDefault();
+            _logger.LogDebug("[DrawCardUseCase] Card to draw: CardId={CardId}, Name={Name}, TypeLine={TypeLine}",
+                cardToDraw?.CardId, cardToDraw?.Name ?? "NULL", cardToDraw?.TypeLine ?? "NULL");
 
-            Console.WriteLine($"[DrawCardUseCase] DeckCount={deck.Count}, HandCount={hand.Count}");
+            session = await _engine.DrawStepAsync(session, playerId);
 
-            if (deck.Count == 0)
-                return new ActionResultDto { Success = false, Message = "Le deck est vide, pas de pioche possible" };
+            var drawnCard = session.Zones[handKey].LastOrDefault();
+            _logger.LogInformation("[DrawCardUseCase] Card drawn: CardId={CardId}, Name={Name}, TypeLine={TypeLine}, ManaCost={ManaCost}",
+                drawnCard?.CardId, drawnCard?.Name ?? "NULL", drawnCard?.TypeLine ?? "NULL", drawnCard?.ManaCost ?? "NULL");
 
-            if (session.TurnNumber == 1 && session.ActivePlayerId == playerId)
-            {
-                session.CurrentPhase = Phase.Main;
-                await _repo.UpdateAsync(session);
-                Console.WriteLine($"[DrawCardUseCase] Premier tour: pas de pioche pour Player={playerId}");
+            _logger.LogDebug("[DrawCardUseCase] Library count AFTER: {Count}",
+                session.Zones[libraryKey].Count);
+            _logger.LogDebug("[DrawCardUseCase] Hand count AFTER: {Count}",
+                session.Zones[handKey].Count);
+            await _engine.SaveSessionAsync(session);
 
-                return new ActionResultDto
-                {
-                    Success = true,
-                    Message = "Pas de pioche au premier tour du joueur commençant",
-                    GameState = _mapper.Map<GameSessionDto>(session)
-                };
-            }
-
-            var drawnCard = deck[0];
-            deck.RemoveAt(0);
-            hand.Add(drawnCard);
-
-            Console.WriteLine($"[DrawCardUseCase] Carte piochée: {drawnCard.CardId}, Phase={session.CurrentPhase}, DeckRestant={deck.Count}, Main={hand.Count}");
-
-            //if (session.CurrentPhase != Phase.Draw)
-            //{
-            //    session.CurrentPhase = Phase.Draw;
-            //}
-
-            session = _engine.DrawStep(session, playerId);
-            await _repo.UpdateAsync(session);
-
-            Console.WriteLine($"[DrawCardUseCase] Après DrawStep: Phase={session.CurrentPhase}, Hand={hand.Count}, Deck={deck.Count}");
-
-            return new ActionResultDto
-            {
-                Success = true,
-                Message = $"Carte piochée: {drawnCard}",
-                GameState = _mapper.Map<GameSessionDto>(session)
-            };
+            return new ActionResultDto { /* ... */ };
         }
     }
 }

@@ -1,39 +1,42 @@
 ﻿using GameMicroservice.Infrastructure.Persistence.Entities;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace GameMicroservice.Application.Interfaces
 {
     /// <summary>
-    /// Interface for managing game session persistence.
+    /// Repository interface for GameSession persistence.
+    /// Contains no business rules or game logic.
     /// </summary>
     public interface IGameSessionRepository
     {
         /// <summary>
-        /// Creates a new game session for two players.
+        /// Retrieves a game session by its unique ID.
         /// </summary>
-        /// <param name="playerOneId">ID of the first player.</param>
-        /// <param name="playerTwoId">ID of the second player.</param>
-        /// <returns>The created game session entity.</returns>
-        Task<GameSession> CreateAsync(string playerOneId, string playerTwoId, string deckIdP1, string deckIdP2);
+        /// <param name="id">The game session ID.</param>
+        /// <returns>The GameSession entity or null if not found.</returns>
+        Task<GameSession?> GetByIdAsync(string id);
 
         /// <summary>
-        /// Retrieves a game session by its ID.
+        /// Returns all existing game sessions.
         /// </summary>
-        /// <param name="gameId">The ID of the game session.</param>
-        /// <returns>The game session entity, or null if not found.</returns>
-        Task<GameSession?> GetByIdAsync(string gameId);
+        Task<List<GameSession>> ListAllAsync();
 
         /// <summary>
-        /// Updates an existing game session.
+        /// Persists a new GameSession in the database.
         /// </summary>
-        /// <param name="session">The game session entity to update.</param>
+        /// <param name="session">Fully initialized GameSession entity.</param>
+        Task CreateAsync(GameSession session);
+        /// <summary>
+        /// Updates an existing GameSession.
+        /// </summary>
+        /// <param name="session">The updated GameSession entity.</param>
         Task UpdateAsync(GameSession session);
 
         /// <summary>
-        /// Updates a game session by playing a card.
+        /// Deletes a game session by ID.
         /// </summary>
-        /// <param name="gameId">The ID of the game session.</param>
-        /// <param name="cardName">The name of the card to play.</param>
-        Task PlayCardAsync(string gameId, string cardName);
+        /// <param name="id">The session ID to delete.</param>
+        Task DeleteAsync(string id);
     }
 }

@@ -7,8 +7,9 @@ namespace GameMicroservice.Application.Interfaces
 {
     public interface IGameRulesEngine
     {
+        Task<GameSession> TapLandAsync(GameSession s, string playerId, string cardId);
         bool HasDrawnThisTurn(GameSession s, string playerId);
-        GameSession DrawStep(GameSession s, string playerId);
+        Task<GameSession> DrawStepAsync(GameSession s, string playerId);
         bool IsLandPhase(GameSession s, string playerId);
         Task ValidatePlayLandAsync(GameSession s, string playerId, string cardName);
         GameSession PlayLand(GameSession s, string playerId, string cardName);
@@ -35,6 +36,8 @@ namespace GameMicroservice.Application.Interfaces
         Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers);
         Task<GameSession> DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard, Dictionary<string, string> blockers);
         EndGameDto? CheckEndGame(GameSession session);
+
+        string ChooseBestLandColor(GameSession session, string playerId, List<string>? availableManaColors = null);
 
     }
 }

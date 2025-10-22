@@ -33,7 +33,10 @@ namespace GameMicroservice.Application.DTOs
         public int? Toughness { get; set; }
 
         [JsonPropertyName("isTapped")]
-        public bool IsTapped { get; set; } = false;
+        public bool IsTapped { get; set; }
+
+        [JsonPropertyName("CanBeTapped")]
+        public bool CanBeTapped { get; set; } 
 
         [JsonPropertyName("hasSummoningSickness")]
         public bool HasSummoningSickness { get; set; } = true;

@@ -3,7 +3,9 @@ using GameMicroservice.Application.UseCases;
 using GameMicroservice.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace GameMicroservice.Presentation.Controllers
 {
@@ -11,7 +13,9 @@ namespace GameMicroservice.Presentation.Controllers
     [Route("api/games/{gameId}/action")]
     public class ActionController : ControllerBase
     {
+        private readonly ILogger<ActionController> _logger;
         private readonly ICardClient _cardClient;
+        private readonly TapLandUseCase _tapLand;
         private readonly PlayLandUseCase _playLand;
         private readonly PlayCardUseCase _playCard;
         private readonly AttackUseCase _attack;
@@ -20,9 +24,12 @@ namespace GameMicroservice.Presentation.Controllers
         private readonly DrawCardUseCase _drawCard;
         private readonly DiscardUseCase _discard;
         private readonly EndGameUseCase _endGame;
+        private readonly PlayerPlayTurnUseCase _playerPlayTurnUseCase;
 
         public ActionController(
+            ILogger<ActionController> logger,
             ICardClient cardClient,
+            TapLandUseCase tapLand,
             PlayLandUseCase playLand,
             PlayCardUseCase playCard,
             AttackUseCase attack,
@@ -30,119 +37,212 @@ namespace GameMicroservice.Presentation.Controllers
             PassPhaseUseCase passPhase,
             DrawCardUseCase drawCard,
             DiscardUseCase discard,
-            EndGameUseCase endGame)
+            EndGameUseCase endGame,
+            PlayerPlayTurnUseCase playerPlayTurnUseCase)
         {
+            _logger = logger;
             _cardClient = cardClient;
+            _tapLand = tapLand;
             _playLand = playLand;
             _playCard = playCard;
             _attack = attack;
             _block = block;
             _passPhase = passPhase;
-            _discard = discard;
             _drawCard = drawCard;
+            _discard = discard;
             _endGame = endGame;
+            _playerPlayTurnUseCase = playerPlayTurnUseCase;
         }
+
         [Authorize]
         [HttpPost]
-        public async Task<IActionResult> PlayAction(
-            [FromRoute] string gameId,
-            [FromBody] PlayerActionDto action)
+        public async Task<IActionResult> PlayAction([FromRoute] string gameId, [FromBody] PlayerActionDto action)
         {
-            Console.WriteLine($"[ActionController] Payload reçu: {System.Text.Json.JsonSerializer.Serialize(action)} pour GameId={gameId}");
+            _logger.LogInformation("[ActionController] Payload received for GameId={GameId}: {ActionPayload}", gameId, System.Text.Json.JsonSerializer.Serialize(action));
 
-            if (!ModelState.IsValid)
+            if (string.IsNullOrEmpty(gameId) || action == null || string.IsNullOrEmpty(action.PlayerId))
             {
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-                Console.WriteLine($"[ActionController] Erreurs ModelState: {string.Join(", ", errors)}");
-                return BadRequest(new
-                {
-                    Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-                    Title = "One or more validation errors occurred.",
-                    Status = 400,
-                    Errors = ModelState.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value?.Errors.Select(e => e.ErrorMessage).ToArray()
-                    )
-                });
+                _logger.LogWarning("[ActionController] Bad request: missing GameId or PlayerId. gameId={GameId} actionNull={ActionNull}", gameId, action == null);
+                return BadRequest("Invalid request: missing GameId or PlayerId.");
             }
-
-            if (string.IsNullOrEmpty(gameId))
-                return BadRequest("Game id is required");
-
-            if (action == null)
-                return BadRequest("Action is required");
-
-            if (string.IsNullOrEmpty(action.PlayerId))
-                return BadRequest("PlayerId is required in payload");
-
-            Console.WriteLine($"[ActionController] Execution action {action.Type} pour Player={action.PlayerId}, Game={gameId}");
 
             try
             {
-                // 🔍 Ajout : récupération du CardId si manquant
-                if (string.IsNullOrEmpty(action.CardId) &&
-                    action.Type != ActionType.Draw &&
-                    action.Type != ActionType.PassToMain &&
-                    action.Type != ActionType.PassToCombat &&
-                    action.Type != ActionType.PreEnd &&
-                    action.Type != ActionType.EndTurn)
-                    return BadRequest("CardId is required for this action.");
-
-                Console.WriteLine($"[ActionController] Received Action Type: {action.Type} (Int: {(int)action.Type})");
-
-                ActionResultDto result = action.Type switch
+                switch (action.Type)
                 {
-                    ActionType.PlayLand => await _playLand.ExecuteAsync(gameId, action.PlayerId, action.CardId!),
-                    ActionType.PlayCard => await _playCard.ExecuteAsync(gameId, action.PlayerId, action),
-                    ActionType.Attack => await _attack.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
-                    ActionType.Block => await _block.ExecuteAsync(gameId, action.PlayerId, action.CombatAction!),
-                    ActionType.PassToMain or ActionType.PassToCombat or ActionType.PreEnd or ActionType.EndTurn
-                        => await _passPhase.ExecuteAsync(gameId, action.PlayerId, action.Type),
-                    ActionType.CastInstant
-                        => await _playCard.ExecuteAsync(gameId, action.PlayerId, action),
-                    ActionType.Draw
-                        => await _drawCard.ExecuteAsync(gameId, action.PlayerId),
-                    ActionType.Discard
-                        => await _discard.ExecuteAsync(gameId, action.PlayerId, action.CardsToDiscard ?? new List<string>()),
-                    _ => new ActionResultDto { Success = false, Message = "Action inconnue" }
-                };
+                    case ActionType.TapLand:
+                        {
+                            _logger.LogInformation("[ActionController] Handling TapLand card={CardId} player={PlayerId} game={GameId}", action.CardId, action.PlayerId, gameId);
+                            if (string.IsNullOrEmpty(action.CardId))
+                                return BadRequest("CardId required for TapLand");
 
-                Console.WriteLine($"[ActionController] Result: Success={result.Success}, Message={result.Message}");
+                            var result = await _tapLand.ExecuteAsync(gameId, action.PlayerId, action.CardId); // Ajoute _tapLand = new TapLandUseCase(...) in constructor
+                            if (result.Success == false)
+                                return BadRequest(result.Message);
 
-                if (result.EndGame != null)
-                    return Ok(result);
+                            _logger.LogInformation("[ActionController] TapLand succeeded for card={CardId}", action.CardId);
+                            return Ok(result);
+                        }
 
-                return result.Success ? Ok(result) : BadRequest(result);
+                    case ActionType.Draw:
+                        {
+                            _logger.LogInformation("[ActionController] Handling Draw for Player={PlayerId} Game={GameId}", action.PlayerId, gameId);
+                            var result = await _drawCard.ExecuteAsync(gameId, action.PlayerId);
+                            if (result == null)
+                            {
+                                _logger.LogWarning("[ActionController] Draw result null for game={GameId} player={PlayerId}", gameId, action.PlayerId);
+                                return NotFound();
+                            }
+                            _logger.LogInformation("[ActionController] Draw succeeded for game={GameId} player={PlayerId}", gameId, action.PlayerId);
+                            return Ok(result);
+                        }
+
+                    case ActionType.PlayLand:
+                        {
+                            _logger.LogInformation("[ActionController] Handling PlayLand card={CardId} player={PlayerId} game={GameId}", action.CardId, action.PlayerId, gameId);
+                            if (string.IsNullOrEmpty(action.CardId))
+                            {
+                                _logger.LogWarning("[ActionController] PlayLand missing CardId for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                                return BadRequest("CardId is required for PlayLand");
+                            }
+                            var result = await _playLand.ExecuteAsync(gameId, action.PlayerId, action.CardId);
+                            if (result == null)
+                            {
+                                _logger.LogWarning("[ActionController] PlayLand failed for card={CardId} player={PlayerId} game={GameId}", action.CardId, action.PlayerId, gameId);
+                                return BadRequest("Cannot play land");
+                            }
+                            _logger.LogInformation("[ActionController] PlayLand succeeded card={CardId} player={PlayerId} game={GameId}", action.CardId, action.PlayerId, gameId);
+                            return Ok(result);
+                        }
+
+                    case ActionType.PlayCard:
+                        {
+                            _logger.LogInformation("[ActionController] Handling PlayCard card={CardId} player={PlayerId} game={GameId}", action.CardId, action.PlayerId, gameId);
+                            var result = await _playCard.ExecuteAsync(gameId, action.PlayerId, action);
+                            if (result == null)
+                            {
+                                _logger.LogWarning("[ActionController] PlayCard failed card={CardId} player={PlayerId} game={GameId}", action.CardId, action.PlayerId, gameId);
+                                return BadRequest("Cannot play card");
+                            }
+                            _logger.LogInformation("[ActionController] PlayCard succeeded card={CardId} player={PlayerId} game={GameId}", action.CardId, action.PlayerId, gameId);
+                            return Ok(result);
+                        }
+
+                    case ActionType.Attack:
+                        {
+                            _logger.LogInformation("[ActionController] Handling Attack player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                            if (action.CombatAction == null)
+                            {
+                                _logger.LogWarning("[ActionController] Attack missing CombatAction for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                                return BadRequest("CombatAction is required for Attack");
+                            }
+                            var result = await _attack.ExecuteAsync(gameId, action.PlayerId, action.CombatAction);
+                            if (result == null)
+                            {
+                                _logger.LogWarning("[ActionController] Attack failed for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                                return BadRequest("Cannot attack");
+                            }
+                            _logger.LogInformation("[ActionController] Attack succeeded for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                            return Ok(result);
+                        }
+
+                    case ActionType.Block:
+                        {
+                            _logger.LogInformation("[ActionController] Handling Block player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                            if (action.CombatAction == null)
+                            {
+                                _logger.LogWarning("[ActionController] Block missing CombatAction for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                                return BadRequest("CombatAction is required for Block");
+                            }
+                            var result = await _block.ExecuteAsync(gameId, action.PlayerId, action.CombatAction);
+                            if (result == null)
+                            {
+                                _logger.LogWarning("[ActionController] Block failed for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                                return BadRequest("Cannot block");
+                            }
+                            _logger.LogInformation("[ActionController] Block succeeded for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                            return Ok(result);
+                        }
+
+                    case ActionType.Discard:
+                        {
+                            _logger.LogInformation("[ActionController] Handling Discard player={PlayerId} game={GameId} cards={Cards}", action.PlayerId, gameId, action.CardsToDiscard);
+                            var cards = action.CardsToDiscard ?? new System.Collections.Generic.List<string>();
+                            var result = await _discard.ExecuteAsync(gameId, action.PlayerId, cards);
+                            if (result == null)
+                            {
+                                _logger.LogWarning("[ActionController] Discard failed for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                                return BadRequest("Cannot discard");
+                            }
+                            _logger.LogInformation("[ActionController] Discard succeeded for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                            return Ok(result);
+                        }
+
+                    case ActionType.EndTurn:
+                        {
+                            _logger.LogInformation("[ActionController] Handling EndTurn for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                            var result = await _playerPlayTurnUseCase.ExecuteAsync(gameId, action.PlayerId);
+                            if (result == null)
+                            {
+                                _logger.LogWarning("[ActionController] EndTurn result null for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                                return NotFound("Game session not found or could not process end turn.");
+                            }
+                            if (result.EndGame != null)
+                            {
+                                _logger.LogInformation("[ActionController] EndTurn resulted in endgame for game={GameId} winner={Winner}", gameId, result.EndGame.WinnerId);
+                                return Ok(result);
+                            }
+                            if (result.Success)
+                            {
+                                _logger.LogInformation("[ActionController] EndTurn succeeded for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                                return Ok(result);
+                            }
+                            _logger.LogWarning("[ActionController] EndTurn returned unsuccessful result for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+                            return BadRequest(result);
+                        }
+
+                    default:
+                        _logger.LogWarning("[ActionController] Unknown or unsupported action type={ActionType} player={PlayerId} game={GameId}", action.Type, action.PlayerId, gameId);
+                        return BadRequest("Unknown or unsupported action type");
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ActionController][ERREUR] Exception non gérée pendant l’action {action.Type}: {ex.Message}\n{ex.StackTrace}");
+                _logger.LogError(ex, "[ActionController] Exception while processing PlayAction for game={GameId} player={PlayerId}", gameId, action.PlayerId);
                 return StatusCode(500, new
                 {
                     Success = false,
-                    Message = "Erreur interne côté serveur",
-                    Exception = ex.Message   
+                    Message = "Erreur interne lors du traitement de l'action",
+                    Exception = ex.Message
                 });
             }
         }
     }
+
     [Route("api/games/{gameId}/ai-turn")]
     public class AITurnController : ControllerBase
     {
+        private readonly ILogger<AITurnController> _logger;
         private readonly AIPlayTurnUseCase _aiPlayTurn;
 
-        public AITurnController(AIPlayTurnUseCase aiPlayTurn)
+        public AITurnController(ILogger<AITurnController> logger, AIPlayTurnUseCase aiPlayTurn)
         {
+            _logger = logger;
             _aiPlayTurn = aiPlayTurn;
         }
 
         [HttpPost]
         public async Task<IActionResult> PlayAITurn([FromRoute] string gameId)
         {
+            _logger.LogInformation("[AITurnController] PlayAITurn called for game={GameId}", gameId);
             var result = await _aiPlayTurn.ExecuteAsync(gameId);
             if (result == null)
+            {
+                _logger.LogWarning("[AITurnController] AIPlayTurn returned null for game={GameId}", gameId);
                 return NotFound("Game session not found or AI could not play.");
+            }
 
+            _logger.LogInformation("[AITurnController] AIPlayTurn succeeded for game={GameId}", gameId);
             return Ok(result);
         }
     }

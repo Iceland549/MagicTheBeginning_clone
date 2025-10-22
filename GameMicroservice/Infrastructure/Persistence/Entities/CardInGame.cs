@@ -28,8 +28,18 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
         [BsonElement("isTapped")]
         public bool IsTapped { get; set; }
 
+        [BsonElement("canBeTapped")]
+        public bool CanBeTapped { get; set; }
+
         [BsonElement("hasSummoningSickness")]
         public bool HasSummoningSickness { get; set; }
+
+        [BsonElement("chosenLandColor")]
+        public string? ChosenLandColor { get; set; }
+
+        [BsonElement("availableManaColors")]
+        public List<string>? AvailableManaColors { get; set; } = new();
+
 
         public CardInGame() { }
 
@@ -38,6 +48,7 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
             CardId = cardId;
             IsTapped = false;
             HasSummoningSickness = false;
+            ChosenLandColor = null;
         }
     }
 }
