@@ -188,3 +188,43 @@
   font-size: 1.08em;
   font-family: monospace;
 }
+
+.ai-thinking-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+}
+
+.ai-thinking-image {
+  height: 115px;
+  width: 380px;
+  object-fit: contain;
+  border: 4px solid #d4af37; /* Doré profond */
+  border-radius: 10px;
+  box-shadow:
+    0 0 10px rgba(212, 175, 55, 0.6),
+    0 0 20px rgba(212, 175, 55, 0.4); /* effet lumineux doux */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ai-thinking-image:hover {
+  transform: scale(1.03);
+  box-shadow:
+    0 0 15px rgba(212, 175, 55, 0.8),
+    0 0 25px rgba(255, 223, 100, 0.6);
+}
+
+.ai-thinking-text {
+  margin-top: 12px;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #444;
+}
+

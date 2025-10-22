@@ -152,6 +152,9 @@ export default function DeckBuilder() {
         <h2>Constructeur de Deck</h2>
         <input value={deckName} onChange={e => setDeckName(e.target.value)} placeholder="Nom du deck" />
         <div className="deck-section">
+        <button onClick={() => navigate('/game')}>
+          <span>Play Game</span>
+        </button>
           <h3>Mes decks</h3>
           {mesDecks.length > 0 ? (
             <ul className="deck-list">
@@ -166,7 +169,7 @@ export default function DeckBuilder() {
           )}
         </div>
 
-        <CardGrid
+        {/* <CardGrid
           title="Cartes disponibles"
           cards={cards}
           onCardAction={(card, qty) => {
@@ -178,7 +181,7 @@ export default function DeckBuilder() {
           quantities={quantities}
           setQuantities={setQuantities}
           onDeleteCard={handleDeleteAvailableCard}
-        />
+        /> */}
 
         <CardGrid
           title="Ma sélection"

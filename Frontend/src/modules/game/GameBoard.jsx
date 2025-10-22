@@ -19,7 +19,7 @@ export default function GameBoard() {
   const [loading, setLoading] = useState(false);
   const [cardDetails, setCardDetails] = useState({}); 
   const navigate = useNavigate();
-  const playerId = localStorage.getItem('userId');
+  const playerId = localStorage.getItem('userId'); 
 
   useEffect(() => {
     if (!playerId) {
@@ -48,6 +48,8 @@ export default function GameBoard() {
         setCardDetails({});
       });
   }, [playerId, navigate]);
+
+  const isAITurn = state && state.activePlayerId === state.playerTwoId;
 
   const refresh = useCallback(async () => {
     if (!gameId) return;
@@ -204,14 +206,38 @@ export default function GameBoard() {
   // Enrichir les zones avec les détails des cartes
   const enrichedZones = state
     ? Object.keys(state.zones).reduce((acc, zoneKey) => {
-        acc[zoneKey] = state.zones[zoneKey].map(card => ({
-          ...card,
-          imageUrl: cardDetails[card.cardId || card.name]?.imageUrl || card.imageUrl || 'https://via.placeholder.com/100'
-        }));
+        acc[zoneKey] = state.zones[zoneKey].map(raw => {
+          const ownerIdFromZone = zoneKey.split('_')[0]; // "playerId_battlefield" => playerId
+          return {
+            ...raw,
+            cardId: raw.CardId || raw.cardId || raw.instanceId || null,
+            name: raw.cardName || raw.name || raw.Name || '',
+            typeLine: raw.typeLine || raw.TypeLine || '',
+            imageUrl: raw.imageUrl || cardDetails[raw.cardId || raw.CardId || raw.cardName]?.imageUrl || 'https://via.placeholder.com/100',
+            ownerId: raw.ownerId || raw.owner || raw.controllerId || ownerIdFromZone || null,
+            isTapped: Boolean(raw.isTapped),
+            CanBeTapped: Boolean(raw.CanBeTapped),
+            hasSummoningSickness: Boolean(raw.hasSummoningSickness),
+            ...raw
+          };
+        });
         return acc;
       }, {})
     : {};
 
+  const handleTapLand = async (cardId, ownerIdFromUI) => {
+      console.log('[GameBoard] handleTapLand called', { gameId, cardId, ownerIdFromUI, playerId }); 
+    try {
+      const playData = { PlayerId: playerId, CardId: cardId, Type: 'TapLand' };
+      console.log('[GameBoard] Sending TapLand', playData);
+      await playCard(gameId, playData);
+      await refresh();
+    } catch (error) {
+      console.error('Erreur TapLand:', error);
+    }
+  };
+
+    
   const handleAction = async (action) => {
     try {
       console.log("=== HANDLE ACTION ===");
@@ -330,10 +356,16 @@ export default function GameBoard() {
               <Battlefield
                 cards={enrichedZones[`${state.playerTwoId}_battlefield`] || []}
                 label={`Champ de bataille : ${state.playerTwoId}`}
+                playerId={state.playerTwoId}
+                currentPlayerId={playerId} 
               />
               <Battlefield
                 cards={enrichedZones[`${playerId}_battlefield`] || []}
                 label={`Champ de bataille : Toi`}
+                  onTap={handleTapLand}
+                  playerId={playerId}
+                  currentPlayerId={playerId} 
+
               />
             </div>
 
@@ -358,7 +390,16 @@ export default function GameBoard() {
               <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
             </div>
             <GameActions actions={buildActions()} onAction={handleAction} />
-            {loading && <div>Chargement...</div>}
+            {isAITurn && (
+              <div className="ai-thinking-overlay">
+                <img
+                  src="/assets/ai-thinking.png"
+                  alt="AI Thinking"
+                  className="ai-thinking-image"
+                />
+                <div className="ai-thinking-text">L'adversaire joue...</div>
+              </div>
+          )}
           </div>
         )}
       </div>

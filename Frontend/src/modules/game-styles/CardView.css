@@ -21,3 +21,35 @@
   min-width: 60px;
   text-align: center;
 }
+
+/* --- TAP LOGIC --- */
+.card-view.tap-container {
+  position: relative;
+  transition: transform 0.4s ease;
+  width: 120px;
+  height: 170px;
+}
+
+.card-view img.tapped {
+  transform: rotate(45deg);
+}
+
+/* Bouton Tap au centre */
+.card-view .tap-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  display: none;
+}
+
+.card-view.tap-container:hover .tap-button {
+  display: block;
+}

@@ -120,6 +120,9 @@ export default function CardList() {
             >
               Supprimer du deck
             </button>
+            <button onClick={() => navigate('/decks')}>
+              <span>Manage Decks</span>
+            </button>
           </div>
         )}
       </div>
