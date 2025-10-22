@@ -1,5 +1,6 @@
 ﻿using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.Interfaces;
+using GameMicroservice.Application.Helpers;
 using GameMicroservice.Infrastructure.Persistence.Entities;
 using System;
 using System.Collections.Generic;
@@ -14,7 +15,7 @@ namespace GameMicroservice.Infrastructure.AI
             Console.WriteLine($"[AI] Player {aiState.PlayerId} ManaPool: {string.Join(", ", aiState.ManaPool.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
             Console.WriteLine($"[AI] Player {aiState.PlayerId} Hand: {string.Join(", ", hand.Select(c => $"{c.CardId}({c.ManaCost ?? "free"})"))}");
 
-            // 1️⃣ Priorité : jouer un terrain si possible et permis
+            // 1️⃣ Jouer un terrain si possible
             if (aiState.LandsPlayedThisTurn < 1)
             {
                 var land = hand.FirstOrDefault(c => c.TypeLine?.IndexOf("Land", StringComparison.OrdinalIgnoreCase) >= 0);
@@ -30,15 +31,15 @@ namespace GameMicroservice.Infrastructure.AI
                 }
             }
 
-            // 2️⃣ Cherche les cartes jouables selon le mana disponible
-            var playable = GetPlayableCards(aiState, hand).ToList();
+            // 2️⃣ Chercher les cartes jouables selon le mana disponible
+            var playable = GetPlayableCards(aiState, hand, session).ToList();
             Console.WriteLine($"[AI] Cartes jouables : {string.Join(", ", playable.Select(c => c.CardId))}");
 
             if (playable.Any())
             {
-                // Priorise les créatures, puis le coût de mana le plus bas
+                // Priorise les créatures, puis le coût le plus bas
                 var best = playable
-                    .OrderBy(c => GetManaValue(c.ManaCost))
+                    .OrderBy(c => ManaCostHelper.ComputeTotalManaValue(c.ManaCost)) // ✅ utilisation du helper
                     .ThenBy(c => c.TypeLine?.Contains("Creature") == true ? 0 : 1)
                     .First();
 
@@ -51,7 +52,23 @@ namespace GameMicroservice.Infrastructure.AI
                 };
             }
 
-            // 3️⃣ Si aucune carte n’est jouable → fin de tour
+            // 3️⃣ Si aucune carte jouable → défausse la plus chère
+            if (hand.Count > 7)
+            {
+                var toDiscard = hand
+                    .OrderByDescending(c => ManaCostHelper.ComputeTotalManaValue(c.ManaCost)) // ✅ helper ici aussi
+                    .First();
+
+                Console.WriteLine($"[AI] Défausse : {toDiscard.CardId}");
+                return new PlayerActionDto
+                {
+                    PlayerId = aiState.PlayerId,
+                    Type = ActionType.Discard,
+                    CardsToDiscard = new List<string> { toDiscard.CardId }
+                };
+            }
+
+            // 4️⃣ Sinon, fin du tour
             Console.WriteLine("[AI] Aucune carte jouable, fin du tour");
             return new PlayerActionDto
             {
@@ -60,21 +77,40 @@ namespace GameMicroservice.Infrastructure.AI
             };
         }
 
-        // Filtre les cartes jouables selon le mana disponible
-        private IEnumerable<CardInGame> GetPlayableCards(PlayerState state, List<CardInGame> hand)
+        // 🔹 Filtre les cartes jouables
+        // inside RandomAIEngine
+        private IEnumerable<CardInGame> GetPlayableCards(PlayerState state, List<CardInGame> hand, GameSession session)
         {
+            // compute currently available mana in pool
+            var poolTotal = state.ManaPool?.Values.Sum() ?? 0;
+
+            // count untapped lands on battlefield for the AI
+            var battlefieldKey = $"{state.PlayerId}_battlefield";
+            var untappedLandsCount = 0;
+            if (session.Zones.ContainsKey(battlefieldKey))
+            {
+                untappedLandsCount = session.Zones[battlefieldKey]
+                    .Count(c => c.TypeLine != null &&
+                                c.TypeLine.IndexOf("Land", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                                !c.IsTapped);
+            }
+
+            var potentialMana = poolTotal + untappedLandsCount;
+
             return hand.Where(card =>
-                card.TypeLine?.IndexOf("Land", StringComparison.OrdinalIgnoreCase) < 0 && // pas des terrains
-                CanAfford(state.ManaPool, card.ManaCost ?? ""));
+                card.TypeLine?.IndexOf("Land", StringComparison.OrdinalIgnoreCase) < 0 &&
+                ManaCostHelper.ComputeTotalManaValue(card.ManaCost ?? "") <= potentialMana
+            );
         }
 
-        // Vérifie si le joueur peut payer le coût
+
+        // 🔹 Vérifie si le joueur peut payer le coût de mana
         private bool CanAfford(Dictionary<string, int> manaPool, string manaCost)
         {
             if (string.IsNullOrEmpty(manaCost))
                 return true;
 
-            var required = ParseManaCost(manaCost);
+            var required = ManaCostHelper.ParseManaCost(manaCost); // ✅ on réutilise le helper
 
             // Vérifie les coûts colorés
             foreach (var kvp in required.Where(k => !string.Equals(k.Key, "GENERIC", StringComparison.OrdinalIgnoreCase)))
@@ -86,95 +122,11 @@ namespace GameMicroservice.Infrastructure.AI
             // Vérifie le coût générique
             var generic = required.GetValueOrDefault("GENERIC", 0);
             var totalAvailable = manaPool.Values.Sum();
-            var coloredUsed = required.Where(k => !string.Equals(k.Key, "GENERIC", StringComparison.OrdinalIgnoreCase)).Sum(k => k.Value);
+            var coloredUsed = required
+                .Where(k => !string.Equals(k.Key, "GENERIC", StringComparison.OrdinalIgnoreCase))
+                .Sum(k => k.Value);
 
             return totalAvailable - coloredUsed >= generic;
-        }
-
-        // Parse le coût de mana dans le même format que GameRulesEngine
-        private Dictionary<string, int> ParseManaCost(string manaCost)
-        {
-            var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            if (string.IsNullOrEmpty(manaCost))
-                return dict;
-
-            // Format avec accolades : {G}{G}{2}, etc.
-            if (manaCost.Contains("{"))
-            {
-                int i = 0;
-                while (i < manaCost.Length)
-                {
-                    if (manaCost[i] == '{')
-                    {
-                        int j = manaCost.IndexOf('}', i + 1);
-                        if (j < 0) break;
-                        var token = manaCost.Substring(i + 1, j - i - 1);
-
-                        if (int.TryParse(token, out int num))
-                            dict["GENERIC"] = dict.GetValueOrDefault("GENERIC", 0) + num;
-                        else
-                        {
-                            string color = token switch
-                            {
-                                "W" => "White",
-                                "U" => "Blue",
-                                "B" => "Black",
-                                "R" => "Red",
-                                "G" => "Green",
-                                "C" => "Colorless",
-                                _ => "Colorless"
-                            };
-                            dict[color] = dict.GetValueOrDefault(color, 0) + 1;
-                        }
-                        i = j + 1;
-                    }
-                    else i++;
-                }
-            }
-            else
-            {
-                // Format simple : "2GG", "3G", etc.
-                int i = 0;
-                while (i < manaCost.Length)
-                {
-                    if (char.IsDigit(manaCost[i]))
-                    {
-                        int j = i;
-                        while (j < manaCost.Length && char.IsDigit(manaCost[j])) j++;
-                        var num = int.Parse(manaCost.Substring(i, j - i));
-                        dict["GENERIC"] = dict.GetValueOrDefault("GENERIC", 0) + num;
-                        i = j;
-                    }
-                    else
-                    {
-                        var symbol = manaCost[i].ToString().ToUpper();
-                        string color = symbol switch
-                        {
-                            "W" => "White",
-                            "U" => "Blue",
-                            "B" => "Black",
-                            "R" => "Red",
-                            "G" => "Green",
-                            "C" => "Colorless",
-                            _ => "Colorless"
-                        };
-                        dict[color] = dict.GetValueOrDefault(color, 0) + 1;
-                        i++;
-                    }
-                }
-            }
-
-            return dict;
-        }
-
-        // Donne la valeur totale d’un coût de mana (pour prioriser les cartes)
-        private int GetManaValue(string? manaCost)
-        {
-            if (string.IsNullOrEmpty(manaCost))
-                return 0;
-
-            var parsed = ParseManaCost(manaCost);
-            return parsed.Values.Sum();
         }
     }
 }
