@@ -88,7 +88,7 @@ namespace GameMicroservice.Application.UseCases
                 if (action == null || action.Type == ActionType.EndTurn)
                 {
                     _logger.LogInformation("[AIPlayTurn] AI decided to end turn.");
-                    break; // ✅ Only break when AI explicitly wants to end
+                    break;
                 }
 
                 try

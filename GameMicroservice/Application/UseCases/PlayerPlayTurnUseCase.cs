@@ -54,6 +54,13 @@ namespace GameMicroservice.Application.UseCases
             _logger.LogDebug("[PlayerPlayTurn] State: Phase={Phase}, LandsPlayed={Lands}, Drawn={Drawn}",
                 session.CurrentPhase, player.LandsPlayedThisTurn, player.HasDrawnThisTurn);
 
+            session.CurrentPhase = Phase.Draw;
+
+            await _engine.SaveSessionAsync(session); 
+
+            _logger.LogInformation("[PlayerPlayTurn] Displaying 'À toi de jouer' animation...");
+            await Task.Delay(3000);
+
             try
             {
                 if (_engine.IsCombatPhase(session, playerId))

@@ -18,6 +18,7 @@ export default function GameBoard() {
   const [deckP2, setDeckP2] = useState(null);
   const [loading, setLoading] = useState(false);
   const [cardDetails, setCardDetails] = useState({}); 
+  const [showWizard, setShowWizard] = useState(false); 
   const navigate = useNavigate();
   const playerId = localStorage.getItem('userId'); 
 
@@ -131,6 +132,22 @@ export default function GameBoard() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.activePlayerId, gameId, state?.playerTwoId, refresh]);
 
+  useEffect(() => { 
+    if (state && state.activePlayerId === playerId && state.currentPhase === "Draw")  
+      {
+        setShowWizard(true); 
+        setTimeout(() => setShowWizard(false), 3000);  
+      }  
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.activePlayerId, state?.currentPhase]);
+
+  // useEffect(() => {
+  //   if(state && state.currentPhase === "End") {
+  //     alert(`Fin de Partie : le joueur ${state.players.find(p => p.playerId === state.activePlayerId)?.name || "inconnu"} a gagné. Bravo !!!`);
+  //   }
+  // }, [state]);
+
+
   const availableDecks = decks.filter(
     d => (!deckP1 || d.id !== deckP1.id) && (!deckP2 || d.id !== deckP2.id)
   );
@@ -207,7 +224,7 @@ export default function GameBoard() {
   const enrichedZones = state
     ? Object.keys(state.zones).reduce((acc, zoneKey) => {
         acc[zoneKey] = state.zones[zoneKey].map(raw => {
-          const ownerIdFromZone = zoneKey.split('_')[0]; // "playerId_battlefield" => playerId
+          const ownerIdFromZone = zoneKey.split('_')[0]; 
           return {
             ...raw,
             cardId: raw.CardId || raw.cardId || raw.instanceId || null,
@@ -399,7 +416,16 @@ export default function GameBoard() {
                 />
                 <div className="ai-thinking-text">L'adversaire joue...</div>
               </div>
-          )}
+            )}
+            {showWizard && ( 
+              <div className="player-turn-banner"> 
+                <img 
+                  src="/assets/wizard.webp" 
+                  alt="À toi de jouer !" 
+                  className="player-turn-image"
+                /> 
+                <div className="player-turn-text">À toi de jouer !...</div>
+              </div> )}
           </div>
         )}
       </div>
