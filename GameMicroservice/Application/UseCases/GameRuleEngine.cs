@@ -27,6 +27,8 @@ namespace GameMicroservice.Application.UseCases
             _gameSessionRepository = gameSessionRepository ?? throw new ArgumentException(nameof(gameSessionRepository));
         }
 
+        // ==========================================      ==========================================
+
         #region Turn flow & draw
 
         public bool HasDrawnThisTurn(GameSession s, string playerId)
@@ -114,6 +116,9 @@ namespace GameMicroservice.Application.UseCases
             return s;
         }
 
+
+        // ==========================================      ==========================================
+
         public async Task<GameSession> DrawStepAsync(GameSession s, string playerId)
         {
             var log = Log.ForContext("Method", nameof(DrawStepAsync))
@@ -189,6 +194,8 @@ namespace GameMicroservice.Application.UseCases
         }
 
         #endregion
+
+        // ==========================================      ==========================================
 
         #region Land play (validate, apply, landfall)
 
@@ -335,6 +342,9 @@ namespace GameMicroservice.Application.UseCases
         }
 
         #endregion
+
+        // ==========================================      ==========================================
+
         #region Play spells / instants (validate + apply)
 
         public bool IsMainPhase(GameSession s, string playerId)
@@ -511,6 +521,8 @@ namespace GameMicroservice.Application.UseCases
 
         #endregion
 
+        // ==========================================      ==========================================
+
         #region Combat / Attack / Block
 
         public GameSession StartCombatPhase(GameSession s, string playerId)
@@ -645,6 +657,66 @@ namespace GameMicroservice.Application.UseCases
             return s;
         }
 
+        public bool IsBlockPhase(GameSession session, string playerId)
+    => session.CurrentPhase == Phase.Combat && session.ActivePlayerId != playerId;
+
+        public async Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
+        {
+            var log = Log.ForContext("Method", nameof(ValidateBlockAsync)).ForContext("PlayerId", playerId);
+            log.Information("🛡️ BEGIN ValidateBlockAsync Count={Count}", blockers?.Count ?? 0);
+
+            if (!IsBlockPhase(session, playerId))
+            {
+                log.Warning("Not in block phase");
+                throw new InvalidOperationException("Not in Block phase");
+            }
+
+            var battlefieldKey = $"{playerId}_battlefield";
+
+            foreach (var blockerId in blockers.Values)
+            {
+                var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == blockerId);
+                if (blockerCard == null)
+                {
+                    log.Warning("Blocker {BlockerId} not on battlefield", blockerId);
+                    throw new InvalidOperationException($"Blocker {blockerId} not on battlefield");
+                }
+                if (blockerCard.IsTapped)
+                {
+                    log.Warning("Blocker {BlockerId} is tapped", blockerId);
+                    throw new InvalidOperationException($"Blocker {blockerId} is tapped");
+                }
+
+                var details = await _cardClient.GetCardByIdAsync(blockerId)
+                    ?? throw new KeyNotFoundException($"Blocker metadata {blockerId} not found");
+
+                if (details.TypeLine == null || !details.TypeLine.Contains("Creature", StringComparison.OrdinalIgnoreCase))
+                {
+                    log.Warning("Blocker {BlockerId} is not a creature", blockerId);
+                    throw new InvalidOperationException($"Blocker {blockerId} is not a creature");
+                }
+
+                log.Debug("Blocker validated: {Blocker}", blockerId);
+            }
+
+            log.Information("✅ ValidateBlockAsync completed for player {PlayerId}", playerId);
+        }
+
+        public Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
+        {
+            var log = Log.ForContext("Method", nameof(ResolveBlockAsync)).ForContext("PlayerId", playerId);
+            log.Information("[ResolveBlockAsync] BEGIN (noop wrapper)");
+            // For now we delegate to ResolveCombatAsync at a higher level; keep wrapper to match interface.
+            log.Information("[ResolveBlockAsync] END (noop wrapper)");
+            return Task.FromResult(session);
+        }
+
+        #endregion
+
+        // ==========================================      ==========================================
+
+        #region Discard / Pre-end / end-turn 
+
         /// <summary>
         /// Discard cards from hand and handle simple blocker interactions.
         /// Matches IGameRulesEngine.DiscardCards(GameSession, string, List<string>, Dictionary<string,string>)
@@ -759,10 +831,6 @@ namespace GameMicroservice.Application.UseCases
             return session;
         }
 
-
-        #endregion
-        #region Pre-end / end-turn / blocks (continued) + Load/Save + EndGame + Mana helpers + Utilities
-
         public bool IsPreEndPhase(GameSession s, string playerId)
             => s.CurrentPhase == Phase.Main && s.ActivePlayerId == playerId;
 
@@ -818,6 +886,14 @@ namespace GameMicroservice.Application.UseCases
                 _logger.LogInformation("[ManaBurn] Player {PlayerId} loses {Unused} life from unused mana. New life: {Life}", playerId, unusedMana, player.LifeTotal);
             }
 
+            if (player.LifeTotal <= 0)
+            {
+                _logger.LogInformation("[GameOver] Player {PlayerId} has 0 or less life. Ending game.", playerId);
+
+                // Marque la phase comme finie
+                s.CurrentPhase = Phase.End;
+            }
+
             // Reset mana pool to 0
             foreach (var key in player.ManaPool.Keys.ToList())
             {
@@ -830,59 +906,11 @@ namespace GameMicroservice.Application.UseCases
             return s;
         }
 
-        public bool IsBlockPhase(GameSession session, string playerId)
-            => session.CurrentPhase == Phase.Combat && session.ActivePlayerId != playerId;
+        #endregion
 
-        public async Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
-        {
-            var log = Log.ForContext("Method", nameof(ValidateBlockAsync)).ForContext("PlayerId", playerId);
-            log.Information("🛡️ BEGIN ValidateBlockAsync Count={Count}", blockers?.Count ?? 0);
+        // ==========================================      ==========================================
 
-            if (!IsBlockPhase(session, playerId))
-            {
-                log.Warning("Not in block phase");
-                throw new InvalidOperationException("Not in Block phase");
-            }
-
-            var battlefieldKey = $"{playerId}_battlefield";
-
-            foreach (var blockerId in blockers.Values)
-            {
-                var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == blockerId);
-                if (blockerCard == null)
-                {
-                    log.Warning("Blocker {BlockerId} not on battlefield", blockerId);
-                    throw new InvalidOperationException($"Blocker {blockerId} not on battlefield");
-                }
-                if (blockerCard.IsTapped)
-                {
-                    log.Warning("Blocker {BlockerId} is tapped", blockerId);
-                    throw new InvalidOperationException($"Blocker {blockerId} is tapped");
-                }
-
-                var details = await _cardClient.GetCardByIdAsync(blockerId)
-                    ?? throw new KeyNotFoundException($"Blocker metadata {blockerId} not found");
-
-                if (details.TypeLine == null || !details.TypeLine.Contains("Creature", StringComparison.OrdinalIgnoreCase))
-                {
-                    log.Warning("Blocker {BlockerId} is not a creature", blockerId);
-                    throw new InvalidOperationException($"Blocker {blockerId} is not a creature");
-                }
-
-                log.Debug("Blocker validated: {Blocker}", blockerId);
-            }
-
-            log.Information("✅ ValidateBlockAsync completed for player {PlayerId}", playerId);
-        }
-
-        public Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
-        {
-            var log = Log.ForContext("Method", nameof(ResolveBlockAsync)).ForContext("PlayerId", playerId);
-            log.Information("[ResolveBlockAsync] BEGIN (noop wrapper)");
-            // For now we delegate to ResolveCombatAsync at a higher level; keep wrapper to match interface.
-            log.Information("[ResolveBlockAsync] END (noop wrapper)");
-            return Task.FromResult(session);
-        }
+        #region Load/Save + EndGame + Mana helpers + Utilities
 
         /// <summary>
         /// Saves session using repository and logs a debug entry.
@@ -945,6 +973,8 @@ namespace GameMicroservice.Application.UseCases
         }
 
         #endregion
+
+        // ==========================================      ==========================================
 
         #region Mana helpers & ChooseBestLandColor + Utilities
 
@@ -1173,6 +1203,8 @@ namespace GameMicroservice.Application.UseCases
         }
 
         #endregion
+
+        // ==========================================      ==========================================
 
         #region State Dump utility
 
