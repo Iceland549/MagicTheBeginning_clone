@@ -101,3 +101,95 @@ export async function playCard(gameId, playData) {
     throw error.response?.data || error;
   }
 }
+
+// --- COMBAT PHASE ACTIONS ---
+/**
+ * Declare attackers for combat phase
+ * @param {string} gameId - Game session ID
+ * @param {string} playerId - Player declaring attackers
+ * @param {Array<string>} attackerIds - Array of creature IDs attacking
+ * @returns {Promise} Updated game state
+ */
+export async function declareAttackers(gameId, playerId, attackersIds) {
+  try {
+    if (!gameId) {
+      throw new Error('gameId is required');    
+    }
+    if (!playerId) {
+      throw new Error('playerIs required');
+    }
+    if (!Array.isArray(attackersIds)) {
+      throw new Error('attackersIds must be a non-empty array');
+    }
+    const payload = {
+      PlayerId: playerId,
+      Type: 'DeclareAttackers',
+      Attackers: attackersIds 
+    };
+    console.log('Declaring attackers with payload:', JSON.stringify(payload, null, 2));
+    const { data } = await api.post(`/games/${gameId}/action`, payload);
+    return data.gameState || data.GameState || data;
+  } catch (error) {
+    console.error('Declare attackers error:', error.response?.data || error.message);
+    throw error.response?.data || error;
+  }
+}
+
+/**
+ * Declare blockers for combat phase
+ * @param {string} gameId - Game session ID
+ * @param {string} playerId - Player declaring blockers
+ * @param {Object} blockers - Mapping { attackerId: blockerId }
+ * @returns {Promise} Updated game state
+ */
+export async function declareBlockers(gameId, playerId, blockers) {
+  try {
+    if (!gameId) {  
+      throw new Error('gameId is required');
+    }
+    if (!playerId) {
+      throw new Error('playerId is required');
+    }
+    if (!blockers || typeof blockers !== 'object') {
+      throw new Error('blockers must be a non-empty object mapping attackerId to blockerId');
+    }
+    const payload = {
+      PlayerId: playerId,
+      Type: 'DeclareBlockers',
+      Blockers: blockers
+    };
+    console.log('Declaring blockers with payload:', JSON.stringify(payload, null, 2));
+    const { data } = await api.post(`/games/${gameId}/action`, payload);
+    return data.gameState || data.GameState || data;
+  } catch (error) {
+    console.error('Declare blockers error:', error.response?.data || error.message);
+    throw error.response?.data || error;
+  } 
+}
+
+/**
+ * Resolve combat damage
+ * @param {string} gameId - Game session ID
+ * @param {string} playerId - Player resolving combat
+ * @returns {Promise} Updated game state
+ */
+export async function resolveCombat(gameId, playerId) {
+  try {
+    if (!gameId) {
+      throw new Error('gameId is required');
+    }
+    if (!playerId) {
+      throw new Error('playerId is required');
+    }
+    const payload = {
+      PlayerId: playerId,
+      Type: 'ResolveCombat'
+    };
+    console.log('Resolving combat with payload:', JSON.stringify(payload, null, 2));
+    const { data } = await api.post(`/games/${gameId}/action`, payload);
+    return data.gameState || data.GameState || data;
+  } catch (error) {
+    console.error('Resolve combat error:', error.response?.data || error.message);
+    throw error.response?.data || error;
+  } 
+}
