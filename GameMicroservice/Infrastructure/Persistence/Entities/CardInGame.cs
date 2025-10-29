@@ -40,7 +40,8 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
         [BsonElement("availableManaColors")]
         public List<string>? AvailableManaColors { get; set; } = new();
 
-
+        [BsonElement("playedThisTurn")]
+        public bool PlayedThisTurn { get; set; } = false;
         public CardInGame() { }
 
         public CardInGame(string cardId)
