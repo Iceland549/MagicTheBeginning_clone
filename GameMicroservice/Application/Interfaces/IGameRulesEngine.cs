@@ -20,11 +20,9 @@ namespace GameMicroservice.Application.Interfaces
         bool IsSpellPhase(GameSession s, string playerId);
         Task ValidateInstantAsync(GameSession s, string playerId, string cardName);
         Task<GameSession> CastInstantAsync(GameSession s, string playerId, string cardName, string? targetId);
-        GameSession StartCombatPhase(GameSession s, string playerId);
+        Task<GameSession> StartCombatPhaseAsync(GameSession s, string playerId);
         bool IsCombatPhase(GameSession s, string playerId);
         Task ValidateAttackAsync(GameSession s, string playerId, List<string> attackers);
-        Task<GameSession> ResolveCombatAsync(GameSession s, string playerId, List<string> attackers, Dictionary<string, string> blockers);
-        GameSession ResolveCombatPhase(GameSession s, string playerId);
         bool IsPreEndPhase(GameSession s, string playerId);
         GameSession PreEndCheck(GameSession s, string playerId);
         bool IsEndPhase(GameSession s, string playerId);
@@ -33,11 +31,32 @@ namespace GameMicroservice.Application.Interfaces
         Task SaveSessionAsync(GameSession session);
         bool IsBlockPhase(GameSession session, string playerId);
         Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers);
-        Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers);
         Task<GameSession> DiscardCards(GameSession session, string playerId, List<string> cardsToDiscard, Dictionary<string, string> blockers);
         EndGameDto? CheckEndGame(GameSession session);
 
         string ChooseBestLandColor(GameSession session, string playerId, List<string>? availableManaColors = null);
 
+        Task<GameSession> TapCreatureAsync(GameSession session, string playerId, string cardId);
+
+        Task<GameSession> DeclareAttackersAsync(
+            GameSession session,
+            string attackerId,
+            List<string> attackerIds);
+
+        Task<GameSession> DeclareBlockersAsync(
+            GameSession session,
+            string defenderId,
+            Dictionary<string, string> blockers);
+
+        Task<GameSession> DeclareBlockersAIAsync(
+            GameSession session,
+            string aiPlayerId);
+
+        Task<GameSession> ResolveCombatDamageAsync(GameSession session, string playerId);
+
+        Task<GameSession> ExecuteCombatPhaseAsync(
+            GameSession session,
+            string attackerId,
+            List<string> attackerIds);
     }
 }
