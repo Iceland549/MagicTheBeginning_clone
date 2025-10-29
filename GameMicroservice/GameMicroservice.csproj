@@ -16,4 +16,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Application\UseCases\Land\" />
+    <Folder Include="Application\UseCases\Draw\" />
+  </ItemGroup>
+
 </Project>

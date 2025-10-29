@@ -23,7 +23,10 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
         public string PlayerTwoId { get; set; } = null!;        // Reference to the second player
 
         [BsonElement("activePlayerId")]
-        public string ActivePlayerId { get; set; } = null!;     // ID of the player whose turn it is
+        public string ActivePlayerId { get; set; } = null!;
+
+        [BsonElement("isPlayerTwoAI")]
+        public bool IsPlayerTwoAI { get; set; } = false;        // Indicates if player two is an AI
 
         [BsonElement("startedAt")]
         public DateTime StartedAt { get; set; } = DateTime.UtcNow; // Start date of the session

@@ -247,35 +247,28 @@ namespace GameMicroservice.Application.UseCases
 
                 if (availableAttackers.Any())
                 {
-                    // 🔸 Déclare les attaquants choisis
                     session = await _engine.DeclareAttackersAsync(session, aiId, availableAttackers);
-                    _logger.LogInformation("[AIPlayTurn] Declared {Count} attackers.", availableAttackers.Count);
 
-                    // trouver le défenseur
                     var defenderId = session.Players.FirstOrDefault(p => p.PlayerId != aiId)?.PlayerId;
 
-                    if (!string.IsNullOrEmpty(defenderId) && (defenderId == "AI" || defenderId == session.PlayerTwoId))
+                    // ✅ Vérification correcte
+                    if (!string.IsNullOrEmpty(defenderId) &&
+                        (defenderId == "AI" || session.IsPlayerTwoAI && defenderId == session.PlayerTwoId))
                     {
-                        // IA vs IA : IA déclare bloqueurs automatiquement puis on résout tout de suite
+                        // Combat IA vs IA → résolution automatique
                         session = await _engine.DeclareBlockersAIAsync(session, defenderId);
-                        await _engine.SaveSessionAsync(session);
-
                         session = await _engine.ResolveCombatDamageAsync(session, aiId);
                         _logger.LogInformation("[AIPlayTurn] Combat resolved automatically for AI vs AI.");
                     }
-
                     else
                     {
-                        // Combat IA vs humain → attendre le front
+                        // ✅ IA vs Humain → attendre les bloqueurs
                         session.CurrentPhase = Phase.Combat;
                         await _engine.SaveSessionAsync(session);
                         _logger.LogInformation("[AIPlayTurn] Waiting for human to declare blockers.");
                         return _mapper.Map<GameSessionDto>(session);
                     }
                 }
-                _logger.LogInformation("[AIPlayTurn] AI switched to Combat phase and will declare attackers if applicable. Checking opponent...");
-                _logger.LogInformation("[AIPlayTurn] Waiting for human to declare blockers. SessionId={SessionId}, ActivePlayer={AIId}", session.Id, aiId);
-
 
 
                 if (_engine.IsPreEndPhase(session, aiId))

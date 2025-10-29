@@ -54,6 +54,7 @@ namespace GameMicroservice.Application.UseCases
             {
                 PlayerOneId = p1,
                 PlayerTwoId = p2,
+                IsPlayerTwoAI = (p2 == "AI"), // ✅ Flag explicite
                 ActivePlayerId = p1,
                 CurrentPhase = Phase.Draw,
                 Zones = new Dictionary<string, List<CardInGame>>
