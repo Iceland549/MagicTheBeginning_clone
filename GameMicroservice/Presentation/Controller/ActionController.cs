@@ -1,6 +1,7 @@
 ﻿using GameMicroservice.Application.DTOs;
 using GameMicroservice.Application.UseCases;
 using GameMicroservice.Application.Interfaces;
+using GameMicroservice.Application.UseCases.Combat;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -16,42 +17,48 @@ namespace GameMicroservice.Presentation.Controllers
         private readonly ILogger<ActionController> _logger;
         private readonly ICardClient _cardClient;
         private readonly TapLandUseCase _tapLand;
+        private readonly TapCreatureUseCase _tapCreature;
         private readonly PlayLandUseCase _playLand;
         private readonly PlayCardUseCase _playCard;
-        private readonly AttackUseCase _attack;
-        private readonly BlockUseCase _block;
+        private readonly DeclareAttackersUseCase _declareAttackers;
+        private readonly DeclareBlockersUseCase _declareBlockers;
+        private readonly ResolveCombatUseCase _resolveCombat;
         private readonly PassPhaseUseCase _passPhase;
         private readonly DrawCardUseCase _drawCard;
         private readonly DiscardUseCase _discard;
         private readonly EndGameUseCase _endGame;
-        private readonly PlayerPlayTurnUseCase _playerPlayTurnUseCase;
+        private readonly PlayerPlayTurnUseCase _playerPlayTurn;
 
         public ActionController(
             ILogger<ActionController> logger,
             ICardClient cardClient,
             TapLandUseCase tapLand,
+            TapCreatureUseCase tapCreature,
             PlayLandUseCase playLand,
             PlayCardUseCase playCard,
-            AttackUseCase attack,
-            BlockUseCase block,
+            DeclareAttackersUseCase declareAttackers,
+            DeclareBlockersUseCase declareBlockers,
+            ResolveCombatUseCase resolveCombat,
             PassPhaseUseCase passPhase,
             DrawCardUseCase drawCard,
             DiscardUseCase discard,
             EndGameUseCase endGame,
-            PlayerPlayTurnUseCase playerPlayTurnUseCase)
+            PlayerPlayTurnUseCase playerPlayTurn)
         {
             _logger = logger;
             _cardClient = cardClient;
             _tapLand = tapLand;
+            _tapCreature = tapCreature;
             _playLand = playLand;
             _playCard = playCard;
-            _attack = attack;
-            _block = block;
+            _declareAttackers = declareAttackers;
+            _declareBlockers = declareBlockers;
+            _resolveCombat = resolveCombat;
             _passPhase = passPhase;
             _drawCard = drawCard;
             _discard = discard;
             _endGame = endGame;
-            _playerPlayTurnUseCase = playerPlayTurnUseCase;
+            _playerPlayTurn = playerPlayTurn;
         }
 
         [Authorize]
@@ -68,6 +75,8 @@ namespace GameMicroservice.Presentation.Controllers
 
             try
             {
+                _logger.LogInformation("[DEBUG] Enum parsed value = {ActionTypeValue} ({ActionTypeInt})",
+                    action.Type.ToString(), (int)action.Type);
                 switch (action.Type)
                 {
                     case ActionType.TapLand:
@@ -83,6 +92,24 @@ namespace GameMicroservice.Presentation.Controllers
                             _logger.LogInformation("[ActionController] TapLand succeeded for card={CardId}", action.CardId);
                             return Ok(result);
                         }
+
+                    case ActionType.TapCreature: 
+                        {
+                            _logger.LogInformation("[ActionController] Handling TapCreature card={CardId} player={PlayerId}",
+                                action.CardId, action.PlayerId);
+
+                            if (string.IsNullOrEmpty(action.CardId))
+                                return BadRequest("CardId required for TapCreature");
+
+                            var result = await _tapCreature.ExecuteAsync(gameId, action.PlayerId, action.CardId);
+                            if (!result.Success)
+                                return BadRequest(result.Message);
+
+                            _logger.LogInformation("[ActionController] TapCreature succeeded for card={CardId}",
+                                action.CardId);
+                            return Ok(result);
+                        }
+
 
                     case ActionType.Draw:
                         {
@@ -128,39 +155,80 @@ namespace GameMicroservice.Presentation.Controllers
                             return Ok(result);
                         }
 
-                    case ActionType.Attack:
+                    case ActionType.PassToCombat:
                         {
-                            _logger.LogInformation("[ActionController] Handling Attack player={PlayerId} game={GameId}", action.PlayerId, gameId);
-                            if (action.CombatAction == null)
+                            _logger.LogInformation("[ActionController] Handling PassToCombat for player={PlayerId}", action.PlayerId);
+
+                            var result = await _passPhase.ExecuteAsync(gameId, action.PlayerId, ActionType.PassToCombat);
+
+                            if (!result.Success)
                             {
-                                _logger.LogWarning("[ActionController] Attack missing CombatAction for player={PlayerId} game={GameId}", action.PlayerId, gameId);
-                                return BadRequest("CombatAction is required for Attack");
+                                _logger.LogWarning("[ActionController] PassToCombat failed: {Message}", result.Message);
+                                return BadRequest(result.Message);
                             }
-                            var result = await _attack.ExecuteAsync(gameId, action.PlayerId, action.CombatAction);
-                            if (result == null)
-                            {
-                                _logger.LogWarning("[ActionController] Attack failed for player={PlayerId} game={GameId}", action.PlayerId, gameId);
-                                return BadRequest("Cannot attack");
-                            }
-                            _logger.LogInformation("[ActionController] Attack succeeded for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+
+                            _logger.LogInformation("[ActionController] PassToCombat succeeded");
                             return Ok(result);
                         }
 
-                    case ActionType.Block:
+                    case ActionType.DeclareAttackers: 
                         {
-                            _logger.LogInformation("[ActionController] Handling Block player={PlayerId} game={GameId}", action.PlayerId, gameId);
-                            if (action.CombatAction == null)
+                            _logger.LogInformation("[ActionController] Handling DeclareAttackers player={PlayerId} count={Count}",
+                                action.PlayerId, action.Attackers?.Count ?? 0);
+
+                            if (action.Attackers == null || !action.Attackers.Any())
+                                return BadRequest("Attackers list required");
+
+                            var result = await _declareAttackers.ExecuteAsync(
+                                gameId,
+                                action.PlayerId,
+                                action.Attackers);
+
+                            if (!result.Success)
+                                return BadRequest(result.Message);
+
+                            _logger.LogInformation("[ActionController] DeclareAttackers succeeded");
+                            return Ok(result);
+                        }
+
+                    case ActionType.DeclareBlockers:
+                        {
+                            _logger.LogInformation("[ActionController] Handling DeclareBlockers player={PlayerId} count={Count}",
+                                action.PlayerId, action.Blockers?.Count ?? 0);
+
+                            if (action.Blockers == null)
+                                return BadRequest("Blockers dictionary required");
+
+                            var result = await _declareBlockers.ExecuteAsync(
+                                gameId,
+                                action.PlayerId,
+                                action.Blockers);
+
+                            if (!result.Success)
+                                return BadRequest(result.Message);
+
+                            _logger.LogInformation("[ActionController] DeclareBlockers succeeded");
+                            return Ok(result);
+                        }
+
+
+
+                    case ActionType.ResolveCombat: 
+                        {
+                            _logger.LogInformation("[ActionController] Handling ResolveCombat for game={GameId}", gameId);
+
+                            var result = await _resolveCombat.ExecuteAsync(gameId, action.PlayerId);
+
+                            if (!result.Success)
+                                return BadRequest(result.Message);
+
+                            if (result.EndGame != null)
                             {
-                                _logger.LogWarning("[ActionController] Block missing CombatAction for player={PlayerId} game={GameId}", action.PlayerId, gameId);
-                                return BadRequest("CombatAction is required for Block");
+                                _logger.LogInformation("[ActionController] Game ended - Winner={Winner}",
+                                    result.EndGame.WinnerId);
                             }
-                            var result = await _block.ExecuteAsync(gameId, action.PlayerId, action.CombatAction);
-                            if (result == null)
-                            {
-                                _logger.LogWarning("[ActionController] Block failed for player={PlayerId} game={GameId}", action.PlayerId, gameId);
-                                return BadRequest("Cannot block");
-                            }
-                            _logger.LogInformation("[ActionController] Block succeeded for player={PlayerId} game={GameId}", action.PlayerId, gameId);
+
+                            _logger.LogInformation("[ActionController] ResolveCombat succeeded");
                             return Ok(result);
                         }
 
@@ -181,7 +249,7 @@ namespace GameMicroservice.Presentation.Controllers
                     case ActionType.EndTurn:
                         {
                             _logger.LogInformation("[ActionController] Handling EndTurn for player={PlayerId} game={GameId}", action.PlayerId, gameId);
-                            var result = await _playerPlayTurnUseCase.ExecuteAsync(gameId, action.PlayerId);
+                            var result = await _playerPlayTurn.ExecuteAsync(gameId, action.PlayerId);
                             if (result == null)
                             {
                                 _logger.LogWarning("[ActionController] EndTurn result null for player={PlayerId} game={GameId}", action.PlayerId, gameId);
