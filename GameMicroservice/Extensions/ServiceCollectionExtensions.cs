@@ -1,11 +1,12 @@
 ﻿using GameMicroservice.Application.Interfaces;
 using GameMicroservice.Application.UseCases;
+using GameMicroservice.Application.UseCases.Combat;
 using GameMicroservice.Infrastructure;
 using GameMicroservice.Infrastructure.AI;
+using GameMicroservice.Infrastructure.Clients;
 using GameMicroservice.Infrastructure.Config;
 using GameMicroservice.Infrastructure.Mapping;
 using GameMicroservice.Infrastructure.Persistence;
-using GameMicroservice.Infrastructure.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -53,8 +54,6 @@ namespace GameMicroservice.Extensions
 
             // Use Cases
             services.AddScoped<AIPlayTurnUseCase>();
-            services.AddScoped<AttackUseCase>();
-            services.AddScoped<BlockUseCase>();
             services.AddScoped<TapLandUseCase>();
             services.AddScoped<DrawCardUseCase>();
             services.AddScoped<DiscardUseCase>();
@@ -67,6 +66,11 @@ namespace GameMicroservice.Extensions
             services.AddScoped<StartGameUseCase>();
             services.AddScoped<PassPhaseUseCase>();
             services.AddScoped<PlayerPlayTurnUseCase>();
+            services.AddScoped<TapCreatureUseCase>();
+            services.AddScoped<DeclareAttackersUseCase>();
+            services.AddScoped<DeclareBlockersUseCase>();
+            services.AddScoped<ResolveCombatUseCase>();
+
 
 
             return services;
