@@ -48,14 +48,21 @@ namespace GameMicroservice.Application.UseCases
 
             var aiId = session.ActivePlayerId;
             _logger.LogInformation("[AIPlayTurn] Active player is AI ({AIId})", aiId);
+            session.ActivePlayerId = aiId;
 
             // 🟩 Draw step
-            if (!_engine.HasDrawnThisTurn(session, aiId))
+            _logger.LogInformation("[AIPlayTurn] Début du tour IA, phase actuelle: {Phase}", session.CurrentPhase);
+
+            if (session.CurrentPhase != Phase.Draw)
             {
-                session = await _engine.DrawStepAsync(session, aiId);
-                await _engine.SaveSessionAsync(session);
-                _logger.LogInformation("[AIPlayTurn] AI drew a card at the start of the turn.");
+                session.CurrentPhase = Phase.Draw;
+                await _engine.SaveSessionAsync(session); 
             }
+
+            session = await _engine.DrawStepAsync(session, aiId);
+            await _engine.SaveSessionAsync(session);
+            _logger.LogInformation("[AIPlayTurn] DrawStep done. HasDrawnThisTurn={HasDrawn}", _engine.HasDrawnThisTurn(session, aiId));
+
 
             var sem = new SemaphoreSlim(1, 1);
             var rng = new Random();
@@ -217,16 +224,59 @@ namespace GameMicroservice.Application.UseCases
                     _logger.LogWarning(ex, "[AIPlayTurn] Failed to execute {ActionType} for {CardId}.", action.Type, action.CardId);
                     continue; // ✅ Try next action
                 }
-
-                // ✅ REMOVED: if (acted) break;
-                // Let the loop continue until AI returns EndTurn or MAX_ITER reached
             }
 
             // 🟥 End of Turn Phases
             try
             {
-                if (_engine.IsCombatPhase(session, aiId))
-                    session = _engine.ResolveCombatPhase(session, aiId);
+                // --- 🟩 Combat Phase ---
+                session = await _engine.StartCombatPhaseAsync(session, aiId);
+
+                // 🔸 Récupérer toutes les créatures disponibles pour attaquer
+                var battlefieldKey = $"{aiId}_battlefield";
+                var availableAttackers = session.Zones.ContainsKey(battlefieldKey)
+                    ? session.Zones[battlefieldKey]
+                        .Where(c => c.TypeLine != null &&
+                                    c.TypeLine.Contains("Creature", StringComparison.OrdinalIgnoreCase) &&
+                                    !c.IsTapped && 
+                                    !c.HasSummoningSickness &&
+                                    c.Power > 0)
+                        .Select(c => c.CardId)
+                        .ToList()
+                    : new List<string>();
+
+                if (availableAttackers.Any())
+                {
+                    // 🔸 Déclare les attaquants choisis
+                    session = await _engine.DeclareAttackersAsync(session, aiId, availableAttackers);
+                    _logger.LogInformation("[AIPlayTurn] Declared {Count} attackers.", availableAttackers.Count);
+
+                    // trouver le défenseur
+                    var defenderId = session.Players.FirstOrDefault(p => p.PlayerId != aiId)?.PlayerId;
+
+                    if (!string.IsNullOrEmpty(defenderId) && (defenderId == "AI" || defenderId == session.PlayerTwoId))
+                    {
+                        // IA vs IA : IA déclare bloqueurs automatiquement puis on résout tout de suite
+                        session = await _engine.DeclareBlockersAIAsync(session, defenderId);
+                        await _engine.SaveSessionAsync(session);
+
+                        session = await _engine.ResolveCombatDamageAsync(session, aiId);
+                        _logger.LogInformation("[AIPlayTurn] Combat resolved automatically for AI vs AI.");
+                    }
+
+                    else
+                    {
+                        // Combat IA vs humain → attendre le front
+                        session.CurrentPhase = Phase.Combat;
+                        await _engine.SaveSessionAsync(session);
+                        _logger.LogInformation("[AIPlayTurn] Waiting for human to declare blockers.");
+                        return _mapper.Map<GameSessionDto>(session);
+                    }
+                }
+                _logger.LogInformation("[AIPlayTurn] AI switched to Combat phase and will declare attackers if applicable. Checking opponent...");
+                _logger.LogInformation("[AIPlayTurn] Waiting for human to declare blockers. SessionId={SessionId}, ActivePlayer={AIId}", session.Id, aiId);
+
+
 
                 if (_engine.IsPreEndPhase(session, aiId))
                     session = _engine.PreEndCheck(session, aiId);

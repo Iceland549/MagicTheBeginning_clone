@@ -37,12 +37,12 @@ namespace GameMicroservice.Application.UseCases
 
                 case ActionType.PassToCombat:
                     if (_engine.IsSpellPhase(session, playerId))
-                        session = _engine.StartCombatPhase(session, playerId);
+                        session = await _engine.StartCombatPhaseAsync(session, playerId);
                     break;
 
                 case ActionType.PreEnd:
                     if (_engine.IsCombatPhase(session, playerId))
-                        session = _engine.ResolveCombatPhase(session, playerId);
+                        session = await _engine.ResolveCombatDamageAsync(session, playerId);
                     break;
 
                 case ActionType.EndTurn:

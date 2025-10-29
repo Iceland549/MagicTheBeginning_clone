@@ -146,7 +146,19 @@ namespace GameMicroservice.Application.UseCases
                 foreach (var bfCard in s.Zones[battlefieldKey])
                 {
                     bfCard.IsTapped = false;
-                    bfCard.HasSummoningSickness = bfCard.TypeLine?.Contains("Creature") ?? false ? false : bfCard.HasSummoningSickness; // Reset seulement pour créatures
+
+                    if (bfCard.TypeLine?.Contains("Creature") ?? false)
+                    {
+                        if (!bfCard.PlayedThisTurn)
+                        {
+                            bfCard.HasSummoningSickness = false;
+                            bfCard.PlayedThisTurn = false;
+                        }
+                        else
+                        {
+                            bfCard.HasSummoningSickness = false;
+                        }
+                    }
                     _logger.LogDebug("[UntapStep] Untapped {CardId} ({Name})", bfCard.CardId, bfCard.Name);
                 }
             }
@@ -428,7 +440,8 @@ namespace GameMicroservice.Application.UseCases
                 Power = cardDetails.Power,
                 Toughness = cardDetails.Toughness,
                 IsTapped = false,
-                HasSummoningSickness = cardDetails.TypeLine?.Contains("Creature") ?? false
+                HasSummoningSickness = cardDetails.TypeLine?.Contains("Creature") ?? false,
+                PlayedThisTurn = cardDetails.TypeLine?.Contains("Creature") ?? false
             };
 
             s.Zones[battlefieldKey].Add(cardOnBattlefield);
@@ -521,13 +534,13 @@ namespace GameMicroservice.Application.UseCases
 
         #endregion
 
-        // ==========================================      ==========================================
+        // ==========================================     COMBAT     ==========================================
 
         #region Combat / Attack / Block
 
-        public GameSession StartCombatPhase(GameSession s, string playerId)
+        public Task<GameSession> StartCombatPhaseAsync(GameSession s, string playerId)
         {
-            var log = Log.ForContext("Method", nameof(StartCombatPhase)).ForContext("PlayerId", playerId);
+            var log = Log.ForContext("Method", nameof(StartCombatPhaseAsync)).ForContext("PlayerId", playerId);
             log.Information("🗡️ BEGIN StartCombatPhase");
 
             if (s.CurrentPhase != Phase.Main || s.ActivePlayerId != playerId)
@@ -539,11 +552,15 @@ namespace GameMicroservice.Application.UseCases
             s.CurrentPhase = Phase.Combat;
             log.Information("✅ Combat phase started for player {PlayerId}", playerId);
             log.Information("🗡️ END StartCombatPhase");
-            return s;
+            return Task.FromResult(s);
         }
 
         public bool IsCombatPhase(GameSession s, string playerId)
             => s.CurrentPhase == Phase.Combat && s.ActivePlayerId == playerId;
+
+
+        public bool IsBlockPhase(GameSession session, string playerId)
+    => session.CurrentPhase == Phase.Combat && session.ActivePlayerId != playerId;
 
         public async Task ValidateAttackAsync(GameSession s, string playerId, List<string> attackers)
         {
@@ -579,87 +596,6 @@ namespace GameMicroservice.Application.UseCases
             log.Information("⚔️ END ValidateAttackAsync");
         }
 
-        public async Task<GameSession> ResolveCombatAsync(GameSession s, string playerId, List<string> attackers, Dictionary<string, string> blockers)
-        {
-            var log = Log.ForContext("Method", nameof(ResolveCombatAsync))
-                         .ForContext("PlayerId", playerId);
-            log.Information("🩸 BEGIN ResolveCombatAsync");
-
-            await ValidateAttackAsync(s, playerId, attackers);
-
-            var opponentId = s.PlayerOneId == playerId ? s.PlayerTwoId : s.PlayerOneId;
-            var opponentBattlefieldKey = $"{opponentId}_battlefield";
-            var myBattlefieldKey = $"{playerId}_battlefield";
-            var graveyardKey = $"{playerId}_graveyard";
-            var opponentGraveyardKey = $"{opponentId}_graveyard";
-
-            // Blocked combat pairs
-            foreach (var kvp in blockers)
-            {
-                var attackerId = kvp.Key;
-                var blockerId = kvp.Value;
-
-                var attacker = s.Zones[myBattlefieldKey].FirstOrDefault(c => c.CardId == attackerId);
-                var blocker = s.Zones[opponentBattlefieldKey].FirstOrDefault(c => c.CardId == blockerId);
-
-                if (attacker == null || blocker == null)
-                {
-                    log.Warning("Invalid attacker/blocker pair ({Attacker}, {Blocker})", attackerId, blockerId);
-                    continue;
-                }
-
-                var attackerDetails = await _cardClient.GetCardByIdAsync(attackerId);
-                var blockerDetails = await _cardClient.GetCardByIdAsync(blockerId);
-
-                if ((attackerDetails?.Power ?? 0) >= (blockerDetails?.Toughness ?? int.MaxValue))
-                {
-                    s.Zones[opponentBattlefieldKey].Remove(blocker);
-                    s.Zones[opponentGraveyardKey].Add(blocker);
-                    log.Information("☠️ Blocker {BlockerName} destroyed by attacker {AttackerName}", blocker?.Name, attacker?.Name);
-                }
-
-                if ((blockerDetails?.Power ?? 0) >= (attackerDetails?.Toughness ?? int.MaxValue))
-                {
-                    s.Zones[myBattlefieldKey].Remove(attacker);
-                    s.Zones[graveyardKey].Add(attacker);
-                    log.Information("☠️ Attacker {AttackerName} destroyed by blocker {BlockerName}", attacker?.Name, blocker?.Name);
-                }
-            }
-
-            // Unblocked damage
-            var unblocked = attackers.Where(a => !blockers.ContainsKey(a)).ToList();
-            var opponent = s.Players.First(p => p.PlayerId == opponentId);
-            foreach (var attackerId in unblocked)
-            {
-                var attackerDetails = await _cardClient.GetCardByIdAsync(attackerId);
-                var dmg = attackerDetails?.Power ?? 0;
-                opponent.LifeTotal -= dmg;
-                log.Information("💥 {AttackerName} dealt {Damage} damage to {OpponentId} (Life now {Life})",
-                    attackerDetails?.Name, dmg, opponentId, opponent.LifeTotal);
-            }
-
-            log.Information("🩸 END ResolveCombatAsync — Opponent life: {Life}", opponent.LifeTotal);
-            return s;
-        }
-
-        public GameSession ResolveCombatPhase(GameSession s, string playerId)
-        {
-            var log = Log.ForContext("Method", nameof(ResolveCombatPhase))
-                         .ForContext("PlayerId", playerId);
-            log.Information("🏁 BEGIN ResolveCombatPhase");
-
-            if (!IsCombatPhase(s, playerId))
-                throw new InvalidOperationException("Not in Combat phase");
-
-            s.CurrentPhase = Phase.Main;
-            log.Information("✅ Combat phase resolved; phase returned to MAIN");
-            log.Information("🏁 END ResolveCombatPhase");
-            return s;
-        }
-
-        public bool IsBlockPhase(GameSession session, string playerId)
-    => session.CurrentPhase == Phase.Combat && session.ActivePlayerId != playerId;
-
         public async Task ValidateBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
         {
             var log = Log.ForContext("Method", nameof(ValidateBlockAsync)).ForContext("PlayerId", playerId);
@@ -673,6 +609,11 @@ namespace GameMicroservice.Application.UseCases
 
             var battlefieldKey = $"{playerId}_battlefield";
 
+            if (blockers == null || blockers.Count == 0)
+            {
+                _logger.LogWarning("Aucun bloqueur fourni.");
+                return;
+            }
             foreach (var blockerId in blockers.Values)
             {
                 var blockerCard = session.Zones[battlefieldKey].FirstOrDefault(c => c.CardId == blockerId);
@@ -702,14 +643,467 @@ namespace GameMicroservice.Application.UseCases
             log.Information("✅ ValidateBlockAsync completed for player {PlayerId}", playerId);
         }
 
-        public Task<GameSession> ResolveBlockAsync(GameSession session, string playerId, Dictionary<string, string> blockers)
+        // AJOUT LOGIQUE COMBAT 
+
+        public async Task<GameSession> TapCreatureAsync(GameSession session, string playerId, string cardId)
         {
-            var log = Log.ForContext("Method", nameof(ResolveBlockAsync)).ForContext("PlayerId", playerId);
-            log.Information("[ResolveBlockAsync] BEGIN (noop wrapper)");
-            // For now we delegate to ResolveCombatAsync at a higher level; keep wrapper to match interface.
-            log.Information("[ResolveBlockAsync] END (noop wrapper)");
+            _logger.LogInformation("[TapCreature] START - PlayerId={PlayerId}, CardId={CardId}", playerId, cardId);
+
+            var battlefieldKey = $"{playerId}_battlefield";
+            if (!session.Zones.ContainsKey(battlefieldKey))
+            {
+                _logger.LogError("[TapCreature] ERREUR - Champ de bataille introuvable pour PlayerId={PlayerId}", playerId);
+                throw new InvalidOperationException("Pas de champ de bataille");
+            }
+
+            var creature = session.Zones[battlefieldKey]
+                .FirstOrDefault(c => c.CardId == cardId);
+
+            if (creature == null)
+            {
+                _logger.LogError("[TapCreature] ERREUR - Créature CardId={CardId} introuvable sur le battlefield", cardId);
+                throw new InvalidOperationException($"Créature {cardId} introuvable");
+            }
+
+            if (creature.IsTapped)
+            {
+                _logger.LogWarning("[TapCreature] REFUSÉ - {CreatureName} est déjà engagée", creature.Name);
+                throw new InvalidOperationException($"{creature.Name} est déjà engagée");
+            }
+
+            if (creature.HasSummoningSickness)
+            {
+                _logger.LogWarning("[TapCreature] REFUSÉ - {CreatureName} a le mal d'invocation", creature.Name);
+                throw new InvalidOperationException($"{creature.Name} a le mal d'invocation");
+            }
+
+            if (creature.TypeLine == null || !creature.TypeLine.Contains("Creature"))
+            {
+                _logger.LogWarning("[TapCreature] REFUSÉ - {CardName} n'est pas une créature (TypeLine={TypeLine})",
+                    creature.Name, creature.TypeLine);
+                throw new InvalidOperationException($"{creature.Name} n'est pas une créature");
+            }
+
+            // Tap la créature
+            creature.IsTapped = true;
+            _logger.LogInformation("[TapCreature] SUCCESS - {CreatureName} engagée avec succès", creature.Name);
+
+            return await Task.FromResult(session);
+        }
+
+        // ==========================================
+        // 2. DÉCLARATION DES ATTAQUANTS (Phase Combat)
+        // ==========================================
+
+        /// <summary>
+        /// Valide et enregistre les créatures attaquantes
+        /// </summary>
+        public async Task<GameSession> DeclareAttackersAsync(
+            GameSession session,
+            string attackerId,
+            List<string> attackerIds)
+        {
+            _logger.LogInformation("[DeclareAttackers] START - AttackerId={AttackerId}, Count={Count}",
+                attackerId, attackerIds.Count);
+            if (session.CurrentPhase != Phase.Combat)
+            {
+                _logger.LogError("[DeclareAttackers] ERREUR - Pas en phase de combat (Phase={Phase})", session.CurrentPhase);
+                throw new InvalidOperationException("Pas en phase de combat");
+            }
+            if (session.ActivePlayerId != attackerId)
+            {
+                _logger.LogError("[DeclareAttackers] ERREUR - Ce n'est pas le tour du joueur (ActivePlayer={Active}, Demandé={Requested})",
+                session.ActivePlayerId, attackerId);
+                throw new InvalidOperationException("Ce n'est pas votre tour");
+            }
+            await ValidateAttackAsync(session, attackerId, attackerIds);
+
+            // Tap toutes les créatures attaquantes
+            var battlefieldKey = $"{attackerId}_battlefield";
+            foreach (var atkId in attackerIds)
+            {
+                var creature = session.Zones[battlefieldKey]
+                    .FirstOrDefault(c => c.CardId == atkId);
+
+                if (creature != null)
+                {
+                    creature.IsTapped = true;
+                    _logger.LogDebug("[DeclareAttackers] Créature {CreatureName} (CardId={CardId}) tappée",
+                        creature.Name, creature.CardId);
+                }
+                else
+                {
+                    _logger.LogWarning("[DeclareAttackers] Créature CardId={CardId} introuvable lors du tap", atkId);
+                }
+            }
+
+            // Stocker les attaquants pour la phase de blocage
+            // On utilise une zone temporaire dans la session
+            var tempKey = $"{attackerId}_declared_attackers";
+            session.Zones[tempKey] = session.Zones[battlefieldKey]
+                .Where(c => attackerIds.Contains(c.CardId))
+                .ToList();
+
+            _logger?.LogInformation("[DeclareAttackers] {Count} créatures déclarées attaquantes", attackerIds.Count);
+
+            // StateDump
+            //LogCombatStateDump(session, attackerId, "DeclareAttackers");
+            return session;
+        }
+
+        // ==========================================
+        // 3. DÉCLARATION DES BLOQUEURS (IA ou Humain)
+        // ==========================================
+
+        /// <summary>
+        /// Déclare les bloqueurs (pour joueur humain)
+        /// </summary>
+        public async Task<GameSession> DeclareBlockersAsync(
+            GameSession session,
+            string defenderId,
+            Dictionary<string, string> blockers)
+        {
+            _logger.LogInformation("[DeclareBlockers] START - DefenderId={DefenderId}, BlockersCount={Count}",
+            defenderId, blockers.Count);
+            var attackerId = session.Players
+                .FirstOrDefault(p => p.PlayerId != defenderId)?.PlayerId;
+
+            if (string.IsNullOrEmpty(attackerId))
+            {
+                _logger.LogError("[DeclareBlockers] ERREUR - Attaquant introuvable (DefenderId={DefenderId})", defenderId);
+                throw new InvalidOperationException("Attaquant introuvable");
+            }
+            await ValidateBlockAsync(session, defenderId, blockers);
+
+            // Tap les créatures qui bloquent
+            var defBfKey = $"{defenderId}_battlefield";
+            var blockedCount = 0;
+
+            foreach (var kvp in blockers)
+            {
+                var attackerCardId = kvp.Key;
+                var blockerCardId = kvp.Value;
+
+                var blocker = session.Zones[defBfKey]
+                    .FirstOrDefault(c => c.CardId == blockerCardId);
+
+                if (blocker != null)
+                {
+                    blocker.IsTapped = true;
+                    blockedCount++;
+                    _logger.LogDebug("[DeclareBlockers] {BlockerName} bloque attaquant CardId={AttackerCardId}",
+                        blocker.Name, attackerCardId);
+                }
+                else
+                {
+                    _logger.LogWarning("[DeclareBlockers] Bloqueur CardId={BlockerCardId} introuvable", blockerCardId);
+                }
+            }
+
+            // Stocker les bloqueurs pour la résolution
+            var tempKey = $"{defenderId}_declared_blockers";
+            session.Zones[tempKey] = blockers.Values
+                .Select(blockerId => session.Zones[defBfKey]
+                    .FirstOrDefault(c => c.CardId == blockerId))
+                .Where(c => c != null)
+                .Select(c=>c!)
+                .ToList();
+
+            _logger?.LogInformation("[DeclareBlockers] {Count} bloqueurs déclarés", blockers.Count);
+
+            return session;
+        }
+
+        /// <summary>
+        /// Déclaration automatique des bloqueurs par l'IA
+        /// </summary>
+        public async Task<GameSession> DeclareBlockersAIAsync(
+            GameSession session,
+            string aiPlayerId)
+        {
+            _logger.LogInformation("[DeclareBlockersAI] START - AIPlayerId={AIPlayerId}", aiPlayerId);
+            var attackerId = session.Players
+                .FirstOrDefault(p => p.PlayerId != aiPlayerId)?.PlayerId;
+
+            if (string.IsNullOrEmpty(attackerId))
+            {
+                _logger.LogError("[DeclareBlockersAI] ERREUR - Attaquant introuvable");
+                throw new InvalidOperationException("Attaquant introuvable");
+            }
+            // Récupérer les attaquants déclarés
+            var tempKey = $"{attackerId}_declared_attackers";
+            var attackers = session.Zones.ContainsKey(tempKey)
+                ? session.Zones[tempKey]
+                : new List<CardInGame>();
+
+            if (!attackers.Any())
+            {
+                _logger.LogInformation("[DeclareBlockersAI] Aucun attaquant à bloquer, fin de la méthode");
+                return session;
+            }
+            _logger.LogDebug("[DeclareBlockersAI] {AttackerCount} attaquants détectés", attackers.Count);
+
+            // Trouver les bloqueurs disponibles (non-tapped)
+            var defBfKey = $"{aiPlayerId}_battlefield";
+            var availableBlockers = session.Zones.ContainsKey(defBfKey)
+                ? session.Zones[defBfKey]
+                    .Where(c => c.TypeLine != null &&
+                               c.TypeLine.Contains("Creature") &&
+                               !c.IsTapped)
+                    .OrderByDescending(c => c.Toughness ?? 0) // Plus résistant en premier
+                    .ThenByDescending(c => c.Power ?? 0)
+                    .ToList()
+                : new List<CardInGame>();
+
+            _logger.LogDebug("[DeclareBlockersAI] {BlockerCount} bloqueurs disponibles", availableBlockers.Count);
+
+            var blockers = new Dictionary<string, string>();
+            var usedBlockers = new HashSet<string>();
+
+            // Assigner un bloqueur par attaquant (stratégie: bloquer les plus dangereux)
+            var sortedAttackers = attackers
+                .OrderByDescending(a => a.Power ?? 0)
+                .ToList();
+
+            foreach (var attacker in sortedAttackers)
+            {
+                var blocker = availableBlockers
+                    .FirstOrDefault(b => !usedBlockers.Contains(b.CardId));
+
+                if (blocker != null)
+                {
+                    blockers[attacker.CardId] = blocker.CardId;
+                    usedBlockers.Add(blocker.CardId);
+                    blocker.IsTapped = true;
+
+                    _logger.LogInformation("[DeclareBlockersAI] IA: {BlockerName} (T={Toughness}) bloque {AttackerName} (P={Power})",
+                        blocker.Name, blocker.Toughness ?? 0, attacker.Name, attacker.Power ?? 0);
+                }
+                else
+                {
+                    _logger.LogDebug("[DeclareBlockersAI] Aucun bloqueur disponible pour {AttackerName}", attacker.Name);
+                }
+            }
+
+            // Stocker les bloqueurs
+            var blockersKey = $"{aiPlayerId}_declared_blockers";
+            session.Zones[blockersKey] = blockers.Values
+                .Select(blockerId => session.Zones[defBfKey]
+                    .FirstOrDefault(c => c.CardId == blockerId))
+                .Where(c => c != null)
+                .Select(c => c !)
+                .ToList();
+
+            // Stocker la map attacker->blocker pour la résolution
+            session.Zones[$"combat_assignments"] = blockers
+                .Select(kvp => new CardInGame
+                {
+                    CardId = kvp.Key, // attacker
+                    Name = kvp.Value  // blocker (stocké dans Name temporairement)
+                })
+                .ToList();
+
+            _logger.LogInformation("[DeclareBlockersAI] SUCCESS - {Count} bloqueurs assignés par l'IA", blockers.Count);
+
+            return await Task.Run(() => {
+                return session;
+            });
+        }
+
+        // ==========================================
+        // 4. RÉSOLUTION DES DÉGÂTS DE COMBAT
+        // ==========================================
+
+
+        public Task<GameSession> ResolveCombatDamageAsync(GameSession session, string playerId)
+        {
+            _logger.LogInformation("[ResolveCombatDamage] START - Résolution des dégâts");
+
+            var attacker = session.Players
+                .FirstOrDefault(p => p.PlayerId == session.ActivePlayerId);
+            var defender = session.Players
+                .FirstOrDefault(p => p.PlayerId != session.ActivePlayerId);
+
+            if (attacker == null || defender == null)
+            {
+                _logger.LogError("[ResolveCombatDamage] ERREUR - Joueurs introuvables");
+                throw new InvalidOperationException("Joueurs introuvables");
+            }
+
+            var attackerId = attacker.PlayerId;
+            var defenderId = defender.PlayerId;
+
+            _logger.LogDebug("[ResolveCombatDamage] Attaquant={AttackerId}, Défenseur={DefenderId}", attackerId, defenderId);
+
+            // Récupérer les attaquants et les assignments
+            var attackersKey = $"{attackerId}_declared_attackers";
+            var attackers = session.Zones.ContainsKey(attackersKey)
+                ? session.Zones[attackersKey]
+                : new List<CardInGame>();
+
+            var assignments = session.Zones.ContainsKey("combat_assignments")
+                ? session.Zones["combat_assignments"]
+                    .ToDictionary(c => c.CardId, c => c.Name)
+                : new Dictionary<string, string>();
+
+            _logger.LogInformation("[ResolveCombatDamage] {AttackerCount} attaquants, {AssignmentCount} assignments",
+                attackers.Count, assignments.Count);
+
+            var atkGraveKey = $"{attackerId}_graveyard";
+            var defGraveKey = $"{defenderId}_graveyard";
+            var atkBfKey = $"{attackerId}_battlefield";
+            var defBfKey = $"{defenderId}_battlefield";
+
+            if (!session.Zones.ContainsKey(atkGraveKey))
+                session.Zones[atkGraveKey] = new List<CardInGame>();
+            if (!session.Zones.ContainsKey(defGraveKey))
+                session.Zones[defGraveKey] = new List<CardInGame>();
+
+            var deadAttackers = new List<CardInGame>();
+            var deadBlockers = new List<CardInGame>();
+
+            int unblockedDamage = 0;
+            int blockedCombatCount = 0;
+
+            foreach (var atkCard in attackers)
+            {
+                var atkPower = atkCard.Power ?? 0;
+
+                if (assignments.TryGetValue(atkCard.CardId, out var blockerId))
+                {
+                    // Combat bloqué
+                    var blkCard = session.Zones[defBfKey]
+                        .FirstOrDefault(c => c.CardId == blockerId);
+
+                    if (blkCard != null)
+                    {
+                        blockedCombatCount++;
+                        var blkPower = blkCard.Power ?? 0;
+                        var blkToughnessInitial = blkCard.Toughness ?? 0;
+                        var atkToughnessInitial = atkCard.Toughness ?? 0;
+
+                        // Échange de dégâts
+                        blkCard.Toughness = blkToughnessInitial - atkPower;
+                        atkCard.Toughness = atkToughnessInitial - blkPower;
+
+                        _logger.LogInformation("[ResolveCombatDamage] COMBAT BLOQUÉ: {Attacker}({AtkPower}/{AtkTough}) VS {Blocker}({BlkPower}/{BlkTough}) => Résultat: {AttackerFinal}/{BlockerFinal}",
+                            atkCard.Name, atkPower, atkToughnessInitial,
+                            blkCard.Name, blkPower, blkToughnessInitial,
+                            atkCard.Toughness, blkCard.Toughness);
+
+                        if ((blkCard.Toughness ?? 0) <= 0)
+                        {
+                            deadBlockers.Add(blkCard);
+                            _logger.LogDebug("[ResolveCombatDamage] {BlockerName} marqué pour destruction", blkCard.Name);
+                        }
+
+                        if ((atkCard.Toughness ?? 0) <= 0)
+                        {
+                            deadAttackers.Add(atkCard);
+                            _logger.LogDebug("[ResolveCombatDamage] {AttackerName} marqué pour destruction", atkCard.Name);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[ResolveCombatDamage] Bloqueur CardId={BlockerId} introuvable", blockerId);
+                    }
+                }
+                else
+                {
+                    // Non bloqué -> dégâts au joueur
+                    unblockedDamage += atkPower;
+                    _logger.LogInformation("[ResolveCombatDamage] DÉGÂTS NON BLOQUÉS: {AttackerName} inflige {Damage} au défenseur",
+                        atkCard.Name, atkPower);
+                }
+            }
+
+            // Appliquer les dégâts au défenseur
+            if (unblockedDamage > 0)
+            {
+                defender.LifeTotal -= unblockedDamage;
+                _logger.LogInformation("[ResolveCombatDamage] DÉGÂTS APPLIQUÉS: Défenseur {DefenderId} perd {Damage} PV => Total: {Life}",
+                    defenderId, unblockedDamage, defender.LifeTotal);
+            }
+
+            // Déplacer les morts au cimetière
+            foreach (var dead in deadBlockers)
+            {
+                session.Zones[defBfKey].Remove(dead);
+                session.Zones[defGraveKey].Add(dead);
+                _logger.LogInformation("[ResolveCombatDamage] MORT: {Name} (bloqueur) → cimetière", dead.Name);
+            }
+
+            foreach (var dead in deadAttackers)
+            {
+                session.Zones[atkBfKey].Remove(dead);
+                session.Zones[atkGraveKey].Add(dead);
+                _logger.LogInformation("[ResolveCombatDamage] MORT: {Name} (attaquant) → cimetière", dead.Name);
+            }
+
+            _logger.LogInformation("[ResolveCombatDamage] RÉSUMÉ: {BlockedCount} combats bloqués, {UnblockedDamage} dégâts non bloqués, {DeadAttackers} attaquants morts, {DeadBlockers} bloqueurs morts",
+                blockedCombatCount, unblockedDamage, deadAttackers.Count, deadBlockers.Count);
+
+            // Nettoyer les zones temporaires
+            session.Zones.Remove(attackersKey);
+            session.Zones.Remove($"{defenderId}_declared_blockers");
+            session.Zones.Remove("combat_assignments");
+
+            _logger.LogDebug("[ResolveCombatDamage] Zones temporaires nettoyées");
+
+            // StateDump final
+            //LogCombatStateDump(session, attackerId, "ResolveCombatDamage");
+
             return Task.FromResult(session);
         }
+
+        // ==========================================
+        // 5. ORCHESTRATION COMPLÈTE DU COMBAT
+        // ==========================================
+
+        /// <summary>
+        /// Gère la phase complète de combat (appel depuis PlayCardUseCase)
+        /// </summary>
+        public async Task<GameSession> ExecuteCombatPhaseAsync(
+            GameSession session,
+            string attackerId,
+            List<string> attackerIds)
+        {
+            // 1️⃣ Déclarer les attaquants
+            session = await DeclareAttackersAsync(session, attackerId, attackerIds);
+            await SaveSessionAsync(session);
+
+            // 2️⃣ Identifier le défenseur
+            var defender = session.Players.FirstOrDefault(p => p.PlayerId != attackerId);
+            if (defender == null)
+                throw new InvalidOperationException("Défenseur introuvable");
+
+            // Déterminer si le défenseur correspond à l'IA (PlayerTwo est l'IA dans ton modèle)
+            bool defenderIsAI = defender.PlayerId == session.PlayerTwoId;
+
+            // 3️⃣ Gestion des cas
+            if (defenderIsAI)
+            {
+                // ⚔️ Cas 1 : Joueur humain attaque → l'IA bloque automatiquement
+                session = await DeclareBlockersAIAsync(session, defender.PlayerId);
+                session = await ResolveCombatDamageAsync(session, attackerId);
+                await SaveSessionAsync(session);
+
+                _logger.LogInformation("[CombatPhase] Joueur attaque → IA bloque et résolution effectuée.");
+            }
+            else
+            {
+                // 🧠 Cas 2 : IA attaque → on attend que le joueur choisisse ses bloqueurs
+                session.ActivePlayerId = defender.PlayerId;
+                session.CurrentPhase = Phase.Combat; 
+                await SaveSessionAsync(session);
+
+                _logger.LogInformation("[CombatPhase] Attaque d'une IA ou d'un joueur → attente du défenseur pour déclarer les bloqueurs.");
+            }
+
+            return session;
+        }
+
+
 
         #endregion
 
@@ -1186,7 +1580,11 @@ namespace GameMicroservice.Application.UseCases
 
             // No clear preference: return null to allow caller to handle fallback
             log.Debug("[ChooseBestLandColor] No strong preference found, returning null");
-            return null;
+            var result = !string.IsNullOrEmpty(best) && colorScores[best] > 0
+                ? best
+                : "Colorless"; // fallback sûr
+
+            return result;
 
         }
 

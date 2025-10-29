@@ -70,10 +70,10 @@ namespace GameMicroservice.Application.UseCases
                     case ActionType.PassToCombat:
                         if (!_engine.IsSpellPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Impossible de passer à la phase de combat" };
-                        sessionEntity = _engine.StartCombatPhase(sessionEntity, playerId);
+                        sessionEntity = await _engine.StartCombatPhaseAsync(sessionEntity, playerId);
                         break;
 
-                    case ActionType.Attack:
+                    case ActionType.DeclareAttackers:
                         if (!_engine.IsCombatPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Pas la phase de combat" };
                         if (action.Attackers == null || !action.Attackers.Any())
@@ -82,17 +82,17 @@ namespace GameMicroservice.Application.UseCases
                             return new ActionResultDto { Success = false, Message = "Dictionnaire des bloqueurs manquant" };
 
                         await _engine.ValidateAttackAsync(sessionEntity, playerId, action.Attackers);
-                        sessionEntity = await _engine.ResolveCombatAsync(sessionEntity, playerId, action.Attackers, action.Blockers);
+                        sessionEntity = await _engine.DeclareAttackersAsync(sessionEntity, playerId, action.Attackers);
                         break;
 
-                    case ActionType.Block:
+                    case ActionType.DeclareBlockers:
                         if (!_engine.IsBlockPhase(sessionEntity, playerId))
                             return new ActionResultDto { Success = false, Message = "Pas la phase de blocage" };
                         if (action.Blockers == null || !action.Blockers.Any())
                             return new ActionResultDto { Success = false, Message = "Aucun bloqueur fourni" };
 
                         await _engine.ValidateBlockAsync(sessionEntity, playerId, action.Blockers);
-                        sessionEntity = await _engine.ResolveBlockAsync(sessionEntity, playerId, action.Blockers);
+                        sessionEntity = await _engine.DeclareBlockersAsync(sessionEntity, playerId, action.Blockers);
                         break;
 
                     case ActionType.Discard:

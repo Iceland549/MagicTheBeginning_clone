@@ -28,9 +28,9 @@ namespace GameMicroservice.Application.UseCases
             IMapper mapper,
             ILogger<PlayerPlayTurnUseCase> logger)
         {
-            _engine = engine ?? throw new ArgumentNullException(nameof(engine));
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _engine = engine;
+            _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task<ActionResultDto?> ExecuteAsync(string sessionId, string playerId)
@@ -39,52 +39,63 @@ namespace GameMicroservice.Application.UseCases
 
             var session = await _engine.LoadSessionAsync(sessionId);
             if (session == null)
-            {
-                _logger.LogWarning("[PlayerPlayTurn] Session {SessionId} not found.", sessionId);
                 return new ActionResultDto { Success = false, Message = "Session not found." };
-            }
 
             var player = session.Players.FirstOrDefault(p => p.PlayerId == playerId);
             if (player == null)
-            {
-                _logger.LogWarning("[PlayerPlayTurn] Player {PlayerId} not found in session.", playerId);
                 return new ActionResultDto { Success = false, Message = "Player not found." };
-            }
-
-            _logger.LogDebug("[PlayerPlayTurn] State: Phase={Phase}, LandsPlayed={Lands}, Drawn={Drawn}",
-                session.CurrentPhase, player.LandsPlayedThisTurn, player.HasDrawnThisTurn);
 
             session.CurrentPhase = Phase.Draw;
-
-            await _engine.SaveSessionAsync(session); 
-
-            _logger.LogInformation("[PlayerPlayTurn] Displaying 'À toi de jouer' animation...");
+            await _engine.SaveSessionAsync(session);
             await Task.Delay(3000);
 
             try
             {
+                // --- 🟩 Combat Phase ---
                 if (_engine.IsCombatPhase(session, playerId))
                 {
-                    _logger.LogInformation("[PlayerPlayTurn] Resolving combat phase.");
-                    session = _engine.ResolveCombatPhase(session, playerId);
+                    _logger.LogInformation("[PlayerPlayTurn] Combat phase started.");
+
+                    // 1️⃣ Start combat phase
+                    session = await _engine.StartCombatPhaseAsync(session, playerId);
+
+                    // 2️⃣ Déclaration des attaquants (depuis frontend)
+                    var declaredAttackers = session.Zones.ContainsKey("_declared_attackers")
+                        ? session.Zones["_declared_attackers"].Select(c => c.CardId).ToList()
+                        : new List<string>();
+                    if (declaredAttackers.Any())
+                    {
+                        session = await _engine.DeclareAttackersAsync(session, playerId, declaredAttackers);
+                        _logger.LogInformation("[PlayerPlayTurn] {Count} attackers declared.", declaredAttackers.Count);
+                    }
+
+                    // 3️⃣ L’IA bloque
+                    var defender = session.Players.FirstOrDefault(p => p.PlayerId != playerId);
+                    if (defender != null)
+                    {
+                        session = await _engine.DeclareBlockersAIAsync(session, defender.PlayerId);
+                        _logger.LogInformation("[PlayerPlayTurn] AI blockers declared.");
+                    }
+
+                    // 4️⃣ Résolution des dégâts
+                    session = await _engine.ResolveCombatDamageAsync(session, playerId);
+                    _logger.LogInformation("[PlayerPlayTurn] Combat resolved.");
                 }
 
+                // --- 🟨 Pre-End Checks ---
                 if (_engine.IsPreEndPhase(session, playerId))
                 {
                     _logger.LogInformation("[PlayerPlayTurn] Executing pre-end checks.");
                     session = _engine.PreEndCheck(session, playerId);
                 }
 
+                // --- 🟥 End Phase ---
                 if (!_engine.IsEndPhase(session, playerId))
-                {
-                    _logger.LogDebug("[PlayerPlayTurn] Forcing End phase.");
                     session.CurrentPhase = Phase.End;
-                }
 
                 session = _engine.EndTurn(session, playerId);
-                _logger.LogInformation("[PlayerPlayTurn] EndTurn executed. Next player={NextPlayer}.", session.ActivePlayerId);
 
-                // Discard step
+                // --- 🧹 Gestion de la main (discard si > 7 cartes) ---
                 var handKey = $"{playerId}_hand";
                 if (session.Zones.ContainsKey(handKey) && session.Zones[handKey].Count > 7)
                 {
@@ -95,30 +106,15 @@ namespace GameMicroservice.Application.UseCases
                         .Select(c => c.CardId)
                         .ToList();
 
-                    _logger.LogInformation("[PlayerPlayTurn] Player {PlayerId} must discard {Excess} cards: {Cards}",
-                        playerId, excess, string.Join(", ", toDiscard));
-
                     session = await _engine.DiscardCards(session, playerId, toDiscard, new());
+                    _logger.LogInformation("[PlayerPlayTurn] Discarded {Excess} cards.", excess);
                 }
 
                 await _engine.SaveSessionAsync(session);
-                _logger.LogInformation("[PlayerPlayTurn] Session saved successfully.");
 
                 var endGame = _engine.CheckEndGame(session);
                 if (endGame != null)
-                {
-                    _logger.LogInformation("[PlayerPlayTurn] GAME ENDED — Winner={Winner}, Reason={Reason}",
-                        endGame.WinnerId, endGame.Reason);
-                }
-
-                var handCount = session.Zones.ContainsKey(handKey) ? session.Zones[handKey].Count : 0;
-                var fieldCount = session.Zones.ContainsKey($"{playerId}_battlefield") ? session.Zones[$"{playerId}_battlefield"].Count : 0;
-                var manaDump = string.Join(", ", player.ManaPool.Select(kv => $"{kv.Key}:{kv.Value}"));
-
-                _logger.LogInformation("[PlayerPlayTurn][StateDump] => Phase={Phase}, Hand={Hand}, Battlefield={Field}, Mana=[{Mana}]",
-                    session.CurrentPhase, handCount, fieldCount, manaDump);
-
-                _logger.LogInformation("===== [PlayerPlayTurn] END =====");
+                    _logger.LogInformation("[PlayerPlayTurn] GAME ENDED — Winner={Winner}, Reason={Reason}", endGame.WinnerId, endGame.Reason);
 
                 return new ActionResultDto
                 {
@@ -130,9 +126,10 @@ namespace GameMicroservice.Application.UseCases
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[PlayerPlayTurn] Exception during turn end for {PlayerId}.", playerId);
+                _logger.LogError(ex, "[PlayerPlayTurn] Error during turn end for {PlayerId}.", playerId);
                 throw;
             }
         }
     }
+
 }
