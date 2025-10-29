@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { startGame, getGameState, playCard } from './gameService';
+import { startGame, getGameState, playCard, declareAttackers, declareBlockers, resolveCombat } from './gameService';
 import { getAllDecks } from '../decks/deckService';
 import { getAllCards } from '../cards/cardService'; 
 import api from '../../services/api';
@@ -18,9 +18,26 @@ export default function GameBoard() {
   const [deckP2, setDeckP2] = useState(null);
   const [loading, setLoading] = useState(false);
   const [cardDetails, setCardDetails] = useState({}); 
-  const [showWizard, setShowWizard] = useState(false); 
+  const [showWizard, setShowWizard] = useState(false);
+  const [combatMode, setCombatMode] = useState(null);
+  // const [localTappedAttackers, setlocalTappedAttackers] = useState([]);
+  // const [localSelectedBlockers, setlocalSelectedBlockers] = useState({});
+  const [combatError, setCombatError] = useState(null);
   const navigate = useNavigate();
   const playerId = localStorage.getItem('userId'); 
+  const resetCombatState = useCallback(() => {
+  setCombatMode(null);
+  setLocalTappedAttackers([]);
+  setLocalSelectedBlockers({});
+  setCombatError(null);
+  }, []);
+  const [showCombatBanner, setShowCombatBanner] = useState(false);
+  const [combatPhaseMessage, setCombatPhaseMessage] = useState('');
+  const [showDamageBanner, setShowDamageBanner] = useState(false);
+  const [damagePhaseMessage, setDamagePhaseMessage] = useState('');
+
+  const [localTappedAttackers, setLocalTappedAttackers] = useState([]); 
+  const [localSelectedBlockers, setLocalSelectedBlockers] = useState({});
 
   useEffect(() => {
     if (!playerId) {
@@ -136,10 +153,33 @@ export default function GameBoard() {
     if (state && state.activePlayerId === playerId && state.currentPhase === "Draw")  
       {
         setShowWizard(true); 
-        setTimeout(() => setShowWizard(false), 3000);  
+        setTimeout(() => setShowWizard(false), 4000);  
       }  
       // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.activePlayerId, state?.currentPhase]);
+
+  useEffect(() => {
+    if (state?.currentPhase !== 'Combat') {
+      resetCombatState();
+    }
+  }, [state?.currentPhase, resetCombatState]);
+
+  useEffect(() => {
+  if (state?.currentPhase === "Combat") {
+    setCombatPhaseMessage("⚔️ Phase de combat !");
+    setShowCombatBanner(true);
+    setTimeout(() => setShowCombatBanner(false), 4000); 
+    }
+  }, [state?.currentPhase]);
+
+  useEffect(() => {
+  if (state?.currentPhase === "PreEnd") {
+    setDamagePhaseMessage("💥 Dégâts résolus !");
+    setShowDamageBanner(true);
+    setTimeout(() => setShowDamageBanner(false), 4000);
+    }
+  }, [state?.currentPhase]);
+
 
   // useEffect(() => {
   //   if(state && state.currentPhase === "End") {
@@ -203,7 +243,7 @@ export default function GameBoard() {
 
       case 'Combat':
         console.log('-> Adding Combat actions');
-        actions.push({ label: 'Fin de combat', type: 'PreEnd' });
+        actions.push({ label: 'Fin de combat', type: 'EndTurn' });
         break;
 
       case 'End':
@@ -220,27 +260,202 @@ export default function GameBoard() {
     return actions;
   };
 
-  // Enrichir les zones avec les détails des cartes
-  const enrichedZones = state
-    ? Object.keys(state.zones).reduce((acc, zoneKey) => {
-        acc[zoneKey] = state.zones[zoneKey].map(raw => {
-          const ownerIdFromZone = zoneKey.split('_')[0]; 
-          return {
-            ...raw,
-            cardId: raw.CardId || raw.cardId || raw.instanceId || null,
-            name: raw.cardName || raw.name || raw.Name || '',
-            typeLine: raw.typeLine || raw.TypeLine || '',
-            imageUrl: raw.imageUrl || cardDetails[raw.cardId || raw.CardId || raw.cardName]?.imageUrl || 'https://via.placeholder.com/100',
-            ownerId: raw.ownerId || raw.owner || raw.controllerId || ownerIdFromZone || null,
-            isTapped: Boolean(raw.isTapped),
-            CanBeTapped: Boolean(raw.CanBeTapped),
-            hasSummoningSickness: Boolean(raw.hasSummoningSickness),
-            ...raw
-          };
-        });
-        return acc;
-      }, {})
-    : {};
+// ============================================
+// HANDLERS
+// ============================================
+
+  // --- COMBAT PHASE ACTIONS ---
+
+/**
+ * Sélectionne/désélectionne une créature attaquante
+ */
+
+  // ✅ Nouveau handleTapCreature — tap local uniquement
+  const handleTapCreature = (cardId, isTappedNow) => {
+    if (state?.currentPhase !== 'Combat') {
+      console.warn('⚠️ Tentative de tap de créature hors phase Combat');
+      return;
+    }
+
+    console.log('[GameBoard] Tap local (Combat phase)', { cardId, isTappedNow });
+
+    setLocalTappedAttackers(prev => {
+      if (isTappedNow) {
+        // ajoute la créature si elle n’y est pas déjà
+        return [...new Set([...prev, cardId])];
+      } else {
+        // détap si elle était déjà sélectionnée
+        return prev.filter(id => id !== cardId);
+      }
+    });
+  };
+
+/**
+ * Assigne un bloqueur à un attaquant
+ */
+const handleSelectBlocker = (attackerId, blockerId, isSelected) => {
+  setLocalSelectedBlockers(prev => {
+    const current = prev[attackerId] || [];
+    return {
+      ...prev,
+      [attackerId]: isSelected
+        ? [...new Set([...current, blockerId])]
+        : current.filter(id => id !== blockerId),
+    };
+  });
+};
+
+
+/**
+ * Déclare les créatures sélectionnées comme attaquantes
+ */
+const handleDeclareAttackers = async () => {
+  console.log('[Combat] === handleDeclareAttackers START ===');
+  console.log('[Combat] GameId:', gameId);
+  console.log('[Combat] PlayerId:', playerId);
+  console.log('[Combat] Selected attackers:', localTappedAttackers);
+
+  // Validation côté UI
+  if (!gameId || !playerId) {
+    const error = 'GameId ou PlayerId manquant';
+    console.error('[Combat]', error);
+    setCombatError(error);
+    return;
+  }
+
+  if (!localTappedAttackers || localTappedAttackers.length === 0) {
+    const error = 'Sélectionnez au moins une créature pour attaquer';
+    console.warn('[Combat]', error);
+    setCombatError(error);
+    return;
+  }
+
+  try {
+    // Efface les erreurs précédentes
+    setCombatError(null);
+
+    // Appel API (gameService.js fait la validation stricte)
+    const updatedState = await declareAttackers(gameId, playerId, localTappedAttackers);
+    
+    if (!updatedState) {
+      throw new Error('Aucune réponse du serveur');
+    }
+
+    console.log('[Combat] ✅ Attaquants déclarés avec succès');
+    console.log('[Combat] État mis à jour:', updatedState);
+
+    // Met à jour l'état du jeu
+    setState(updatedState);
+
+    // Passe en mode blocage
+    setCombatMode('block');
+
+    console.log('[Combat] === handleDeclareAttackers END (SUCCESS) ===');
+
+  } catch (error) {
+    console.error('[Combat] ❌ Erreur lors de la déclaration des attaquants:', error);
+    
+    // Message utilisateur
+    const errorMsg = error.message || error.error || 'Erreur lors de la déclaration des attaquants';
+    setCombatError(errorMsg);
+
+    // Réinitialise le mode combat si erreur critique
+    if (error.status === 401 || error.status === 404) {
+      setCombatMode(null);
+      setLocalTappedAttackers([]);
+    }
+
+    console.log('[Combat] === handleDeclareAttackers END (ERROR) ===');
+  }
+};
+
+/**
+ * Déclare les bloqueurs et résout le combat
+ */
+const handleDeclareBlockers = async () => {
+  console.log('[Combat] === handleDeclareBlockers START ===');
+  console.log('[Combat] GameId:', gameId);
+  console.log('[Combat] PlayerId:', playerId);
+  console.log('[Combat] Selected blockers:', localSelectedBlockers);
+
+  // Validation côté UI
+  if (!gameId || !playerId) {
+    const error = 'GameId ou PlayerId manquant';
+    console.error('[Combat]', error);
+    setCombatError(error);
+    return;
+  }
+
+  // Note: Les bloqueurs peuvent être vides (pas de blocage)
+  if (!localSelectedBlockers || typeof selectedBlockers !== 'object') {
+    const error = 'Format de bloqueurs invalide';
+    console.error('[Combat]', error);
+    setCombatError(error);
+    return;
+  }
+
+  try {
+    // Efface les erreurs précédentes
+    setCombatError(null);
+
+    // 1. Déclaration des bloqueurs
+    console.log('[Combat] Étape 1/3 : Déclaration des bloqueurs...');
+    const stateAfterBlockers = await declareBlockers(gameId, playerId, localSelectedBlockers);
+    
+    if (!stateAfterBlockers) {
+      throw new Error('Aucune réponse après déclaration des bloqueurs');
+    }
+
+    console.log('[Combat] ✅ Bloqueurs déclarés');
+    setState(stateAfterBlockers);
+
+    // 2. Résolution du combat
+    console.log('[Combat] Étape 2/3 : Résolution du combat...');
+    const stateAfterResolve = await resolveCombat(gameId, playerId);
+    
+    if (!stateAfterResolve) {
+      throw new Error('Aucune réponse après résolution du combat');
+    }
+
+    console.log('[Combat] ✅ Combat résolu');
+    setState(stateAfterResolve);
+
+    // 3. Refresh final pour synchroniser l'état complet
+    console.log('[Combat] Étape 3/3 : Refresh de l\'état...');
+    await refresh();
+    
+    console.log('[Combat] ✅ État rafraîchi');
+
+    // Réinitialise l'interface de combat
+    setCombatMode(null);
+    localTappedAttackers([]);
+    localSelectedBlockers([]);
+
+    console.log('[Combat] === handleDeclareBlockers END (SUCCESS) ===');
+
+  } catch (error) {
+    console.error('[Combat] ❌ Erreur lors de la phase de blocage/résolution:', error);
+    
+    // Message utilisateur
+    const errorMsg = error.message || error.error || 'Erreur lors de la résolution du combat';
+    setCombatError(errorMsg);
+
+    // En cas d'erreur, on tente quand même un refresh pour récupérer l'état serveur
+    try {
+      console.log('[Combat] Tentative de récupération de l\'état après erreur...');
+      await refresh();
+      
+      // Réinitialise l'UI pour éviter un état incohérent
+      setCombatMode(null);
+      localTappedAttackers([]);
+      setLocalSelectedBlockers([]);
+    } catch (refreshError) {
+      console.error('[Combat] ❌ Impossible de récupérer l\'état:', refreshError);
+    }
+
+    console.log('[Combat] === handleDeclareBlockers END (ERROR) ===');
+  }
+};
 
   const handleTapLand = async (cardId, ownerIdFromUI) => {
       console.log('[GameBoard] handleTapLand called', { gameId, cardId, ownerIdFromUI, playerId }); 
@@ -254,7 +469,8 @@ export default function GameBoard() {
     }
   };
 
-    
+
+  
   const handleAction = async (action) => {
     try {
       console.log("=== HANDLE ACTION ===");
@@ -295,6 +511,30 @@ export default function GameBoard() {
       alert("Erreur lors de l'action : " + (error.message || "inconnue"));
     }
   };
+
+// ============================================
+// Enrichir les zones avec les détails des cartes
+// ============================================
+  const enrichedZones = state
+    ? Object.keys(state.zones).reduce((acc, zoneKey) => {
+        acc[zoneKey] = state.zones[zoneKey].map(raw => {
+          const ownerIdFromZone = zoneKey.split('_')[0]; 
+          return {
+            ...raw,
+            cardId: raw.CardId || raw.cardId || raw.instanceId || null,
+            name: raw.cardName || raw.name || raw.Name || '',
+            typeLine: raw.typeLine || raw.TypeLine || '',
+            imageUrl: raw.imageUrl || cardDetails[raw.cardId || raw.CardId || raw.cardName]?.imageUrl || 'https://via.placeholder.com/100',
+            ownerId: raw.ownerId || raw.owner || raw.controllerId || ownerIdFromZone || null,
+            isTapped: Boolean(raw.isTapped),
+            CanBeTapped: Boolean(raw.CanBeTapped),
+            hasSummoningSickness: Boolean(raw.hasSummoningSickness),
+            ...raw
+          };
+        });
+        return acc;
+      }, {})
+    : {};
 
   if (state) {
     console.log("♻️ Re-render GameBoard — Zones enrichies:", Object.keys(enrichedZones));
@@ -375,13 +615,27 @@ export default function GameBoard() {
                 label={`Champ de bataille : ${state.playerTwoId}`}
                 playerId={state.playerTwoId}
                 currentPlayerId={playerId} 
+                currentPhase={state?.currentPhase}
+                combatMode={combatMode}
+                selectedAttackers={localTappedAttackers}
+                selectedBlockers={localSelectedBlockers}
+                onSelectAttacker={handleTapCreature}
+                onSelectBlocker={handleSelectBlocker}
+
               />
               <Battlefield
                 cards={enrichedZones[`${playerId}_battlefield`] || []}
                 label={`Champ de bataille : Toi`}
                   onTap={handleTapLand}
+                  onTapCreature={handleTapCreature}
                   playerId={playerId}
-                  currentPlayerId={playerId} 
+                  currentPlayerId={playerId}
+                  currentPhase={state?.currentPhase} 
+                  combatMode={combatMode}
+                  selectedAttackers={localTappedAttackers}
+                  selectedBlockers={localSelectedBlockers}
+                  onSelectAttacker={handleTapCreature}
+                  onSelectBlocker={handleSelectBlocker}
 
               />
             </div>
@@ -410,22 +664,87 @@ export default function GameBoard() {
             {isAITurn && (
               <div className="ai-thinking-overlay">
                 <img
-                  src="/assets/ai-thinking.png"
+                  src="/assets/saruman-2.jpeg"
                   alt="AI Thinking"
                   className="ai-thinking-image"
                 />
                 <div className="ai-thinking-text">L'adversaire joue...</div>
-              </div>
+            </div>
             )}
             {showWizard && ( 
               <div className="player-turn-banner"> 
                 <img 
-                  src="/assets/wizard.webp" 
+                  src="/assets/gandalf.jpeg" 
                   alt="À toi de jouer !" 
                   className="player-turn-image"
                 /> 
                 <div className="player-turn-text">À toi de jouer !...</div>
-              </div> )}
+            </div> )}
+            {showCombatBanner && (
+              <div className="combat-phase-banner">
+                <img
+                  src="/assets/arena-magic.jpg"
+                  alt="Phase de combat"
+                  className="combat-phase-image"
+                />
+                <div className="combat-phase-text">{combatPhaseMessage}</div>
+              </div>
+            )}
+            {showDamageBanner && (
+              <div className="damage-phase-banner">
+                <img
+                  src="/assets/damage.jpeg"
+                  alt="Résolution des dégâts"
+                  className="damage-phase-image"
+                />
+                <div className="damage-phase-text">{damagePhaseMessage}</div>
+              </div>
+            )}
+
+            {state?.currentPhase === 'Combat' && state.activePlayerId === playerId && (
+              <div className="combat-actions">
+              {combatError && (
+                <div className="combat-error">
+                  ⚠️ {combatError}
+                </div>
+              )}
+              {!combatMode && (
+                <button
+                  className="btn btn-combat"
+                  onClick={() => setCombatMode('attack')}
+                >
+                  Déclarer les attaquants
+                </button>
+              )}
+              {combatMode === "attack" && (
+                <div className="combat-attack-buttons">
+                  <button
+                    className="btn btn-confirm"
+                    onClick={handleDeclareAttackers}
+                    disabled={localTappedAttackers.length === 0}
+                  >
+                    Confirmer les attaquants {localTappedAttackers.length}
+                  </button>
+                  <button className="btn btn-cancel" onClick={resetCombatState}>
+                    Annuler
+                  </button>
+                </div>
+              )}
+              {combatMode === "block" && (
+                <div className="combat-block-buttons">
+                  <p className="combat-info">
+                    Phase de blocage – Sélectionne tes bloqueurs ou passe
+                  </p>
+                  <button className="btn btn-block" onClick={handleDeclareBlockers}>
+                    Déclarer les bloqueurs {Object.keys(localSelectedBlockers).length}
+                  </button>
+                  <button className="btn btn-skip" onClick={handleDeclareBlockers}>
+                    Passer (pas de blocage)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           </div>
         )}
       </div>
