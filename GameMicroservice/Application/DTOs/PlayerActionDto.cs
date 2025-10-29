@@ -3,14 +3,16 @@
     public enum ActionType
     {
         TapLand,
+        TapCreature,
         Draw,
         PlayLand,
         PlayCard,
         CastInstant,
         PassToMain,
         PassToCombat,
-        Attack,
-        Block,
+        DeclareAttackers,
+        DeclareBlockers,
+        ResolveCombat,
         Discard,
         PreEnd,
         EndTurn,
