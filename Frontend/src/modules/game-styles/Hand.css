@@ -16,3 +16,25 @@
 .hand-zone img:hover {
   transform: scale(1.3);
 }
+
+.center-zone {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 40px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+
+.card-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: 320px; /* 4 cartes de 70-75px + gaps, ajuste selon taille cartes */
+  margin: 0 auto;
+  overflow-x: hidden;
+  max-height: calc(2 * 105px + 8px); /* par exemple, hauteur 2 rangées */
+}
+

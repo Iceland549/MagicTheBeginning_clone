@@ -8,9 +8,8 @@ import '../game-styles/GameBoard.css';
 import Battlefield from './Battlefield';
 import PlayerZone from './PlayerZone';
 import GameActions from './GameActions';
-import Library from './Library';
 
-export default function GameBoard() {
+export default function GameBoard(showControls, ...props) {
   const [gameId, setGameId] = useState('');
   const [state, setState] = useState(null);
   const [decks, setDecks] = useState([]);
@@ -38,6 +37,8 @@ export default function GameBoard() {
 
   const [localTappedAttackers, setLocalTappedAttackers] = useState([]); 
   const [localSelectedBlockers, setLocalSelectedBlockers] = useState({});
+
+  
 
   useEffect(() => {
     if (!playerId) {
@@ -163,7 +164,7 @@ export default function GameBoard() {
       resetCombatState();
     }
   }, [state?.currentPhase, resetCombatState]);
-
+ 
   useEffect(() => {
   if (state?.currentPhase === "Combat") {
     setCombatPhaseMessage("⚔️ Phase de combat !");
@@ -608,6 +609,13 @@ const handleDeclareBlockers = async () => {
               zones={enrichedZones} 
               isPlayable={false}
             />
+            {showControls && <div className="actions-zone"><GameActions {...props.actionsProps} /></div>}
+            <div className="game-status">
+              <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
+              <p>Phase : {state.currentPhase}</p>
+              <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
+              <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
+            </div>
 
             <div className="battlefield-areas">
               <Battlefield
@@ -648,18 +656,12 @@ const handleDeclareBlockers = async () => {
               currentPhase={state.currentPhase}
             />
 
-            <div className="center-zone">
+            {/* <div className="center-zone">
               <Library count={enrichedZones[`${state.playerTwoId}_library`]?.length || 0} />
               <div className="vs-label">VS</div>
               <Library count={enrichedZones[`${playerId}_library`]?.length || 0} />
-            </div>
+            </div> */}
 
-            <div className="game-status">
-              <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
-              <p>Phase : {state.currentPhase}</p>
-              <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
-              <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
-            </div>
             <GameActions actions={buildActions()} onAction={handleAction} />
             {isAITurn && (
               <div className="ai-thinking-overlay">

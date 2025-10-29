@@ -88,7 +88,7 @@ export default function CardView({
           {!localTapped ? (
             <button className="btn" onClick={handleTapClick}>Tap</button>
           ) : (
-            <span style={{ color: 'lightgreen' }}>Tapped</span>
+            <span></span>
           )}
         </>
       )}
@@ -130,7 +130,7 @@ export default function CardView({
       {typeof card.power === 'number' && typeof card.toughness === 'number' && (
         <p>{card.power} / {card.toughness}</p>
       )}
-      {localTapped && <p style={{ color: 'red' }}>TAP</p>}
+      {localTapped}
       {card.hasSummoningSickness && <p style={{ color: 'orange' }}>Mal d’invocation</p>}
 
       <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
