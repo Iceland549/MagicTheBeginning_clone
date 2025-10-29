@@ -37,4 +37,32 @@
   position: relative;
 }
 
+.card-tapped img,
+.battle-card-img.tapped {
+  transform: rotate(90deg);
+  opacity: 0.8;
+  transition: transform 0.4s ease, opacity 0.3s ease;
+}
+
+.battle-card-img.tapped {
+  transform: rotate(45deg);
+  opacity: 0.8;
+  transition: transform 0.35s ease, opacity 0.25s ease;
+}
+
+.selected-attacker {
+  border: 3px solid crimson;
+  box-shadow: 0 0 15px red;
+}
+
+.btn-attack {
+  margin-top: 10px;
+  background-color: crimson;
+  color: white;
+  font-weight: bold;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}
 
