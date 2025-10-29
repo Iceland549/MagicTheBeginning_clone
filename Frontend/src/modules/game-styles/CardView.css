@@ -53,3 +53,56 @@
 .card-view.tap-container:hover .tap-button {
   display: block;
 }
+
+.selected-attacker {
+  border: 3px solid #ffcc00 !important;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+  transform: scale(1.05);
+  transition: all 0.3s ease;
+}
+
+.attacker-hit {
+  animation: flashAttack 1s ease-in-out infinite alternate;
+}
+
+@keyframes flashAttack {
+  0% { box-shadow: 0 0 5px 2px rgba(255, 69, 0, 0.4); transform: scale(1); }
+  100% { box-shadow: 0 0 15px 5px rgba(255, 69, 0, 0.9); transform: scale(1.05); }
+}
+
+.blocked-card {
+  animation: flashBlock 1s ease-in-out infinite alternate;
+}
+
+@keyframes flashBlock {
+  0% { box-shadow: 0 0 5px 2px rgba(100, 149, 237, 0.4); transform: scale(1); }
+  100% { box-shadow: 0 0 15px 5px rgba(30, 144, 255, 0.8); transform: scale(1.05); }
+}
+
+/* ===== Styles pour créatures attaquantes & boutons ===== */
+
+.creature-attacking {
+  border: 3px solid crimson;
+  box-shadow: 0 0 18px rgba(220, 20, 60, 0.6);
+  transform: translateY(-4px);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.btn-tap-creature {
+  margin-top: 8px;
+  background-color: #c0392b;
+  color: #fff;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.btn-tap-creature:active { transform: translateY(1px); }
+
+.card-selected {
+  outline: 3px solid yellow;
+  transform: scale(1.05);
+}
+
