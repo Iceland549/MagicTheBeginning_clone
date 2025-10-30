@@ -15,14 +15,24 @@ export default function Hand({ cards, onPlay, isPlayable, showControls, ...props
         </div>
       )}
       <div className="card-list">
-        {(cards || []).map((card, i) => (
-          <CardView 
-            key={i} 
-            card={card} 
-            onPlay={onPlay} 
-            disabled={!isPlayable} 
-          />
-        ))}
+        {(cards || [])
+          .filter(card => {
+            const type = (card.type_line || card.type || "").toLowerCase();
+            // ❌ On retire les terrains et sorts
+            return !(
+              type.includes("land") || // Terrain
+              type.includes("sorcery") || // Sort
+              type.includes("instant")
+            );
+          })
+          .map((card, i) => (
+            <CardView
+              key={i}
+              card={card}
+              onPlay={onPlay}
+              disabled={!isPlayable}
+            />
+          ))}
       </div>
     </div>
   );

@@ -28,13 +28,18 @@
 
 
 .card-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  max-width: 320px; /* 4 cartes de 70-75px + gaps, ajuste selon taille cartes */
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* ✅ deux colonnes */
+  gap: 10px;
+  justify-items: center;
+  width: 100%;
   margin: 0 auto;
-  overflow-x: hidden;
-  max-height: calc(2 * 105px + 8px); /* par exemple, hauteur 2 rangées */
+  overflow: visible;
+  padding-bottom: 12px;
+}
+
+.card-list img {
+  width: 100px; /* Ajuste selon ta taille de carte */
+  height: auto;
 }
 

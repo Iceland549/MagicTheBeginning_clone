@@ -244,8 +244,18 @@ export default function GameBoard(showControls, ...props) {
 
       case 'Combat':
         console.log('-> Adding Combat actions');
-        actions.push({ label: 'Fin de combat', type: 'EndTurn' });
+
+
+        if (state.activePlayerId === playerId) {
+          actions.push({ label: 'Déclarer les attaquants', type: 'DeclareAttackers' });
+        }
+
+        actions.push({ label: 'Déclarer les bloqueurs', type: 'DeclareBlockers' });
+
+        actions.push({ label: 'Fin de combat', type: 'ResolveCombat' });
+
         break;
+
 
       case 'End':
         console.log('-> Adding End phase actions');
@@ -291,172 +301,168 @@ export default function GameBoard(showControls, ...props) {
     });
   };
 
-/**
- * Assigne un bloqueur à un attaquant
- */
-const handleSelectBlocker = (attackerId, blockerId, isSelected) => {
-  setLocalSelectedBlockers(prev => {
-    const current = prev[attackerId] || [];
-    return {
-      ...prev,
-      [attackerId]: isSelected
-        ? [...new Set([...current, blockerId])]
-        : current.filter(id => id !== blockerId),
-    };
-  });
-};
+  /**
+   * Assigne un bloqueur à un attaquant
+   */
+  const handleSelectBlocker = (attackerId, blockerId, isSelected) => {
+    setLocalSelectedBlockers(prev => {
+      const current = prev[attackerId] || [];
+      return {
+        ...prev,
+        [attackerId]: isSelected
+          ? [...new Set([...current, blockerId])]
+          : current.filter(id => id !== blockerId),
+      };
+    });
+  };
 
 
-/**
- * Déclare les créatures sélectionnées comme attaquantes
- */
-const handleDeclareAttackers = async () => {
-  console.log('[Combat] === handleDeclareAttackers START ===');
-  console.log('[Combat] GameId:', gameId);
-  console.log('[Combat] PlayerId:', playerId);
-  console.log('[Combat] Selected attackers:', localTappedAttackers);
+  /**
+   * Déclare les créatures sélectionnées comme attaquantes
+   */
+  const handleDeclareAttackers = async () => {
+    console.log('[Combat] === handleDeclareAttackers START ===');
+    console.log('[Combat] GameId:', gameId);
+    console.log('[Combat] PlayerId:', playerId);
+    console.log('[Combat] Selected attackers:', localTappedAttackers);
 
-  // Validation côté UI
-  if (!gameId || !playerId) {
-    const error = 'GameId ou PlayerId manquant';
-    console.error('[Combat]', error);
-    setCombatError(error);
-    return;
-  }
-
-  if (!localTappedAttackers || localTappedAttackers.length === 0) {
-    const error = 'Sélectionnez au moins une créature pour attaquer';
-    console.warn('[Combat]', error);
-    setCombatError(error);
-    return;
-  }
-
-  try {
-    // Efface les erreurs précédentes
-    setCombatError(null);
-
-    // Appel API (gameService.js fait la validation stricte)
-    const updatedState = await declareAttackers(gameId, playerId, localTappedAttackers);
-    
-    if (!updatedState) {
-      throw new Error('Aucune réponse du serveur');
+    // Validation côté UI
+    if (!gameId || !playerId) {
+      const error = 'GameId ou PlayerId manquant';
+      console.error('[Combat]', error);
+      setCombatError(error);
+      return;
     }
 
-    console.log('[Combat] ✅ Attaquants déclarés avec succès');
-    console.log('[Combat] État mis à jour:', updatedState);
+    if (!localTappedAttackers || localTappedAttackers.length === 0) {
+      const error = 'Sélectionnez au moins une créature pour attaquer';
+      console.warn('[Combat]', error);
+      setCombatError(error);
+      return;
+    }
 
-    // Met à jour l'état du jeu
-    setState(updatedState);
+    try {
+      setCombatError(null);
 
-    // Passe en mode blocage
-    setCombatMode('block');
+      const updatedState = await declareAttackers(gameId, playerId, localTappedAttackers);
+      
+      if (!updatedState) {
+        throw new Error('Aucune réponse du serveur');
+      }
 
-    console.log('[Combat] === handleDeclareAttackers END (SUCCESS) ===');
+      console.log('[Combat] ✅ Attaquants déclarés avec succès');
+      console.log('[Combat] État mis à jour:', updatedState);
 
-  } catch (error) {
-    console.error('[Combat] ❌ Erreur lors de la déclaration des attaquants:', error);
-    
-    // Message utilisateur
-    const errorMsg = error.message || error.error || 'Erreur lors de la déclaration des attaquants';
-    setCombatError(errorMsg);
+      // Met à jour l'état du jeu
+      setState(updatedState);
 
-    // Réinitialise le mode combat si erreur critique
-    if (error.status === 401 || error.status === 404) {
+      // ✅ Vérifie si on doit auto-résoudre le combat
+      if (updatedState?.currentPhase === 'Combat') {
+        const defender = updatedState.players.find(p => p.playerId !== playerId);
+        const defenderBattlefield = updatedState.zones?.[`${defender.playerId}_battlefield`] || [];
+        const defenderIsAI = defender.playerId === 'AI' || updatedState.isPlayerTwoAI;
+
+        if (defenderIsAI && defenderBattlefield.length === 0) {
+          console.log('[AutoResolve] Défenseur IA sans créatures : déclenchement automatique de la résolution du combat...');
+          await resolveCombat(gameId, playerId);
+          await refresh();
+        }
+      }
+
+      // Passe en mode blocage
+      setCombatMode('block');
+
+      console.log('[Combat] === handleDeclareAttackers END (SUCCESS) ===');
+
+    } catch (error) {
+      console.error('[Combat] ❌ Erreur lors de la déclaration des attaquants:', error);
+      
+      // Message utilisateur
+      const errorMsg = error.message || error.error || 'Erreur lors de la déclaration des attaquants';
+      setCombatError(errorMsg);
+
+      // Réinitialise le mode combat si erreur critique
+      if (error.status === 401 || error.status === 404) {
+        setCombatMode(null);
+        setLocalTappedAttackers([]);
+      }
+
+      console.log('[Combat] === handleDeclareAttackers END (ERROR) ===');
+    }
+  };
+
+  /**
+  * Déclare les bloqueurs et résout le combat
+  */
+  const handleDeclareBlockers = async () => {
+    console.log('[Combat] === handleDeclareBlockers START ===');
+    console.log('[Combat] GameId:', gameId);
+    console.log('[Combat] PlayerId:', playerId);
+    console.log('[Combat] Selected blockers:', localSelectedBlockers);
+
+    if (!gameId || !playerId) {
+      const error = 'GameId ou PlayerId manquant';
+      console.error('[Combat]', error);
+      setCombatError(error);
+      return;
+    }
+
+    if (!localSelectedBlockers || typeof localSelectedBlockers !== 'object') {
+      const error = 'Format de bloqueurs invalide';
+      console.error('[Combat]', error);
+      setCombatError(error);
+      return;
+    }
+
+    try {
+      setCombatError(null);
+
+      // 1️⃣ Déclaration des bloqueurs
+      console.log('[Combat] Étape 1/3 : Déclaration des bloqueurs...');
+      const payloadBlockers =
+        localSelectedBlockers && Object.keys(localSelectedBlockers).length > 0
+          ? localSelectedBlockers
+          : {};
+
+      const stateAfterBlockers = await declareBlockers(gameId, playerId, payloadBlockers);
+
+      if (!stateAfterBlockers) throw new Error('Aucune réponse après déclaration des bloqueurs');
+
+      console.log('[Combat] ✅ Bloqueurs déclarés');
+      setState(stateAfterBlockers);
+
+      // 2️⃣ Attente visuelle — ton image "damage-phase-banner" arrive ensuite
+      console.log('[Combat] Étape 2/3 : Appel ResolveCombat (IA reprend la main)');
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // ⚔️  Envoi du signal de résolution de combat
+      const stateAfterResolve = await resolveCombat(gameId, playerId);
+      if (!stateAfterResolve) throw new Error('Aucune réponse après résolution du combat');
+
+      console.log('[Combat] ✅ Combat résolu');
+      setState(stateAfterResolve);
+
+      // 3️⃣ Rafraîchir l’état complet (pour déclencher la phase de dégâts & la bannière)
+      console.log('[Combat] Étape 3/3 : Refresh de l’état...');
+      await refresh();
+
+      // 4️⃣ Réinitialisation de l’UI combat
       setCombatMode(null);
       setLocalTappedAttackers([]);
+      setLocalSelectedBlockers({});
+
+      console.log('[Combat] === handleDeclareBlockers END (SUCCESS) ===');
+    } catch (error) {
+      console.error('[Combat] ❌ Erreur handleDeclareBlockers:', error);
+      setCombatError(error.message || 'Erreur pendant la phase de blocage/résolution');
+      try {
+        await refresh();
+      } catch {
+        console.warn('Refresh échoué après erreur combat.');
+      }
     }
+  };
 
-    console.log('[Combat] === handleDeclareAttackers END (ERROR) ===');
-  }
-};
-
-/**
- * Déclare les bloqueurs et résout le combat
- */
-const handleDeclareBlockers = async () => {
-  console.log('[Combat] === handleDeclareBlockers START ===');
-  console.log('[Combat] GameId:', gameId);
-  console.log('[Combat] PlayerId:', playerId);
-  console.log('[Combat] Selected blockers:', localSelectedBlockers);
-
-  // Validation côté UI
-  if (!gameId || !playerId) {
-    const error = 'GameId ou PlayerId manquant';
-    console.error('[Combat]', error);
-    setCombatError(error);
-    return;
-  }
-
-  // Note: Les bloqueurs peuvent être vides (pas de blocage)
-  if (!localSelectedBlockers || typeof selectedBlockers !== 'object') {
-    const error = 'Format de bloqueurs invalide';
-    console.error('[Combat]', error);
-    setCombatError(error);
-    return;
-  }
-
-  try {
-    // Efface les erreurs précédentes
-    setCombatError(null);
-
-    // 1. Déclaration des bloqueurs
-    console.log('[Combat] Étape 1/3 : Déclaration des bloqueurs...');
-    const stateAfterBlockers = await declareBlockers(gameId, playerId, localSelectedBlockers);
-    
-    if (!stateAfterBlockers) {
-      throw new Error('Aucune réponse après déclaration des bloqueurs');
-    }
-
-    console.log('[Combat] ✅ Bloqueurs déclarés');
-    setState(stateAfterBlockers);
-
-    // 2. Résolution du combat
-    console.log('[Combat] Étape 2/3 : Résolution du combat...');
-    const stateAfterResolve = await resolveCombat(gameId, playerId);
-    
-    if (!stateAfterResolve) {
-      throw new Error('Aucune réponse après résolution du combat');
-    }
-
-    console.log('[Combat] ✅ Combat résolu');
-    setState(stateAfterResolve);
-
-    // 3. Refresh final pour synchroniser l'état complet
-    console.log('[Combat] Étape 3/3 : Refresh de l\'état...');
-    await refresh();
-    
-    console.log('[Combat] ✅ État rafraîchi');
-
-    // Réinitialise l'interface de combat
-    setCombatMode(null);
-    localTappedAttackers([]);
-    localSelectedBlockers([]);
-
-    console.log('[Combat] === handleDeclareBlockers END (SUCCESS) ===');
-
-  } catch (error) {
-    console.error('[Combat] ❌ Erreur lors de la phase de blocage/résolution:', error);
-    
-    // Message utilisateur
-    const errorMsg = error.message || error.error || 'Erreur lors de la résolution du combat';
-    setCombatError(errorMsg);
-
-    // En cas d'erreur, on tente quand même un refresh pour récupérer l'état serveur
-    try {
-      console.log('[Combat] Tentative de récupération de l\'état après erreur...');
-      await refresh();
-      
-      // Réinitialise l'UI pour éviter un état incohérent
-      setCombatMode(null);
-      localTappedAttackers([]);
-      setLocalSelectedBlockers([]);
-    } catch (refreshError) {
-      console.error('[Combat] ❌ Impossible de récupérer l\'état:', refreshError);
-    }
-
-    console.log('[Combat] === handleDeclareBlockers END (ERROR) ===');
-  }
-};
 
   const handleTapLand = async (cardId, ownerIdFromUI) => {
       console.log('[GameBoard] handleTapLand called', { gameId, cardId, ownerIdFromUI, playerId }); 
@@ -513,9 +519,9 @@ const handleDeclareBlockers = async () => {
     }
   };
 
-// ============================================
-// Enrichir les zones avec les détails des cartes
-// ============================================
+  // ============================================
+  // Enrichir les zones avec les détails des cartes
+  // ============================================
   const enrichedZones = state
     ? Object.keys(state.zones).reduce((acc, zoneKey) => {
         acc[zoneKey] = state.zones[zoneKey].map(raw => {
@@ -604,19 +610,20 @@ const handleDeclareBlockers = async () => {
         )}
         {state && (
           <div className="magic-board">
+            <div className="actions-zone-wrapper">
+              {showControls && <div className="actions-zone"><GameActions {...props.actionsProps} /></div>}
+              <div className="game-status">
+                <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
+                <p>Phase : {state.currentPhase}</p>
+                <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
+                <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
+              </div>
+            </div>
             <PlayerZone
               playerId={state.playerTwoId}
               zones={enrichedZones} 
               isPlayable={false}
             />
-            {showControls && <div className="actions-zone"><GameActions {...props.actionsProps} /></div>}
-            <div className="game-status">
-              <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
-              <p>Phase : {state.currentPhase}</p>
-              <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
-              <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
-            </div>
-
             <div className="battlefield-areas">
               <Battlefield
                 cards={enrichedZones[`${state.playerTwoId}_battlefield`] || []}

@@ -28,7 +28,7 @@ export default function Dashboard() {
         </button>
         <button onClick={handleLogout}>
           <img src="/assets/dark-ritual.jpg" alt="Deconnexion" />
-          <span>Deconnexion</span>
+          <span>Connexion<br></br>Deconnexion</span>
         </button>
       </div>
     </div>
