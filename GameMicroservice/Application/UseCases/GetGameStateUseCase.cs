@@ -58,14 +58,12 @@ namespace GameMicroservice.Application.UseCases
                     actions.Add(new AvailableActionDto { Label = "Piocher", Type = "Draw", Disabled = false });
                     break;
                 case Phase.Main:
-                    // Exemple : vérifier si le joueur peut jouer un terrain
                     var player = game.Players.Find(p => p.PlayerId == playerId);
                     var canPlayLand = player != null && player.LandsPlayedThisTurn < 1 &&
                         (game.Zones[$"{playerId}_hand"]?.Any(c => c.TypeLine != null && c.TypeLine.Contains("Land")) ?? false);
                     if (canPlayLand)
                         actions.Add(new AvailableActionDto { Label = "Jouer un terrain", Type = "PlayLand", Disabled = false });
 
-                    // Jouer un sort (exemple générique, à adapter selon ta logique)
                     var canPlayCard = (game.Zones[$"{playerId}_hand"]?.Any(c => c.TypeLine == null || !c.TypeLine.Contains("Land")) ?? false);
                     if (canPlayCard)
                         actions.Add(new AvailableActionDto { Label = "Jouer un sort", Type = "PlayCard", Disabled = false });
@@ -75,7 +73,7 @@ namespace GameMicroservice.Application.UseCases
                     break;
 
                 case Phase.Combat:
-                    actions.Add(new AvailableActionDto { Label = "Fin de combat", Type = "PreEnd", Disabled = false });
+                    actions.Add(new AvailableActionDto { Label = "Fin de combat", Type = "ResolveCombat", Disabled = false });
                     break;
 
                 case Phase.End:
