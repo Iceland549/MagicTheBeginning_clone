@@ -50,29 +50,26 @@ namespace GameMicroservice.Application.UseCases
             _logger.LogInformation("[AIPlayTurn] Active player is AI ({AIId})", aiId);
             session.ActivePlayerId = aiId;
 
-            // 🟩 Draw step
+            // 🟩 DRAW PHASE
             _logger.LogInformation("[AIPlayTurn] Début du tour IA, phase actuelle: {Phase}", session.CurrentPhase);
 
             if (session.CurrentPhase != Phase.Draw)
             {
                 session.CurrentPhase = Phase.Draw;
-                await _engine.SaveSessionAsync(session); 
+                await _engine.SaveSessionAsync(session);
             }
 
             session = await _engine.DrawStepAsync(session, aiId);
             await _engine.SaveSessionAsync(session);
             _logger.LogInformation("[AIPlayTurn] DrawStep done. HasDrawnThisTurn={HasDrawn}", _engine.HasDrawnThisTurn(session, aiId));
 
-
             var sem = new SemaphoreSlim(1, 1);
             var rng = new Random();
-
             int iterations = 0;
             const int MAX_ITER = 20;
 
             while (iterations++ < MAX_ITER)
             {
-                // 💤 Simulated "thinking" delay
                 await sem.WaitAsync();
                 try
                 {
@@ -84,13 +81,11 @@ namespace GameMicroservice.Application.UseCases
                     sem.Release();
                 }
 
-                // Refresh latest session and AI state
                 session = await _engine.LoadSessionAsync(sessionId);
                 var aiState = session.Players.First(p => p.PlayerId == aiId);
                 var handKey = $"{aiId}_hand";
                 var hand = session.Zones.ContainsKey(handKey) ? session.Zones[handKey] : new List<CardInGame>();
 
-                // Let AI pick next action
                 var action = _ai.DecideNextAction(aiState, session, hand);
                 if (action == null || action.Type == ActionType.EndTurn)
                 {
@@ -112,8 +107,6 @@ namespace GameMicroservice.Application.UseCases
                             await _engine.ValidatePlayLandAsync(session, aiId, action.CardId);
                             session = _engine.PlayLand(session, aiId, action.CardId);
                             await _engine.SaveSessionAsync(session);
-
-                            session = await _engine.LoadSessionAsync(sessionId);
                             _logger.LogInformation("[AIPlayTurn] Played land {CardId}.", action.CardId);
                             break;
 
@@ -124,10 +117,7 @@ namespace GameMicroservice.Application.UseCases
                                 continue;
                             }
 
-                            // refresh session
                             session = await _engine.LoadSessionAsync(sessionId);
-
-                            // find the card in AI's hand
                             var handKeyLocal = $"{aiId}_hand";
                             var cardInHand = session.Zones.ContainsKey(handKeyLocal)
                                 ? session.Zones[handKeyLocal].FirstOrDefault(c => c.CardId == action.CardId)
@@ -139,17 +129,13 @@ namespace GameMicroservice.Application.UseCases
                                 continue;
                             }
 
-                            // compute mana required (total)
                             int manaNeeded = ManaCostHelper.ComputeTotalManaValue(cardInHand.ManaCost ?? "");
-
-                            // compute current mana pool available
                             var playerState = session.Players.First(p => p.PlayerId == aiId);
                             int poolTotal = playerState.ManaPool?.Values.Sum() ?? 0;
                             int remainingToTap = Math.Max(0, manaNeeded - poolTotal);
 
                             if (remainingToTap > 0)
                             {
-                                // Choose untapped lands
                                 var battlefieldKey = $"{aiId}_battlefield";
                                 var availableLands = session.Zones.ContainsKey(battlefieldKey)
                                     ? session.Zones[battlefieldKey]
@@ -159,7 +145,6 @@ namespace GameMicroservice.Application.UseCases
                                         .ToList()
                                     : new List<CardInGame>();
 
-                                // if not enough lands -> skip this action
                                 if (availableLands.Count < remainingToTap)
                                 {
                                     _logger.LogInformation("[AIPlayTurn] Not enough untapped lands to pay {CardId} (need {Need}, have {Have})",
@@ -167,11 +152,7 @@ namespace GameMicroservice.Application.UseCases
                                     continue;
                                 }
 
-                                // Tap the required lands one by one
-                                var landsToTap = availableLands.Take(remainingToTap).ToList();
-                                bool tapFailed = false;
-
-                                foreach (var land in landsToTap)
+                                foreach (var land in availableLands.Take(remainingToTap))
                                 {
                                     try
                                     {
@@ -182,24 +163,16 @@ namespace GameMicroservice.Application.UseCases
                                     catch (Exception ex)
                                     {
                                         _logger.LogWarning(ex, "[AIPlayTurn] Failed to tap land {CardId}.", land.CardId);
-                                        tapFailed = true;
-                                        break;
                                     }
                                 }
-
-                                if (tapFailed)
-                                    continue;
                             }
 
-                            // Now try to validate & play
                             try
                             {
                                 await _engine.ValidatePlayAsync(session, aiId, action.CardId);
                                 session = await _engine.PlayCardAsync(session, aiId, action.CardId);
                                 await _engine.SaveSessionAsync(session);
-
                                 _logger.LogInformation("[AIPlayTurn] Played spell {CardId}.", action.CardId);
-                                // ✅ Continue loop to try playing more cards
                             }
                             catch (Exception ex)
                             {
@@ -222,54 +195,54 @@ namespace GameMicroservice.Application.UseCases
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "[AIPlayTurn] Failed to execute {ActionType} for {CardId}.", action.Type, action.CardId);
-                    continue; // ✅ Try next action
+                    continue;
                 }
             }
 
-            // 🟥 End of Turn Phases
+            // 🟥 END OF TURN PHASES
             try
             {
-                // --- 🟩 Combat Phase ---
-                session = await _engine.StartCombatPhaseAsync(session, aiId);
-
-                // 🔸 Récupérer toutes les créatures disponibles pour attaquer
+                // --- 🟩 COMBAT PHASE ---
                 var battlefieldKey = $"{aiId}_battlefield";
                 var availableAttackers = session.Zones.ContainsKey(battlefieldKey)
                     ? session.Zones[battlefieldKey]
                         .Where(c => c.TypeLine != null &&
                                     c.TypeLine.Contains("Creature", StringComparison.OrdinalIgnoreCase) &&
-                                    !c.IsTapped && 
-                                    !c.HasSummoningSickness &&
-                                    c.Power > 0)
+                                    !c.IsTapped &&
+                                    c.Power > 0 &&
+                                    !c.HasSummoningSickness)
                         .Select(c => c.CardId)
                         .ToList()
                     : new List<string>();
 
-                if (availableAttackers.Any())
+                if (!availableAttackers.Any())
                 {
+                    _logger.LogInformation("[AIPlayTurn] No valid attackers — skipping combat phase entirely.");
+                }
+                else
+                {
+                    session = await _engine.StartCombatPhaseAsync(session, aiId);
                     session = await _engine.DeclareAttackersAsync(session, aiId, availableAttackers);
+                    _logger.LogInformation("[AIPlayTurn] Declared {Count} attackers.", availableAttackers.Count);
 
-                    var defenderId = session.Players.FirstOrDefault(p => p.PlayerId != aiId)?.PlayerId;
+                    var currentDefenderId = session.Players.FirstOrDefault(p => p.PlayerId != aiId)?.PlayerId;
 
-                    // ✅ Vérification correcte
-                    if (!string.IsNullOrEmpty(defenderId) &&
-                        (defenderId == "AI" || session.IsPlayerTwoAI && defenderId == session.PlayerTwoId))
+                    if (!string.IsNullOrEmpty(currentDefenderId) && (currentDefenderId == "AI" || currentDefenderId == session.PlayerTwoId))
                     {
-                        // Combat IA vs IA → résolution automatique
-                        session = await _engine.DeclareBlockersAIAsync(session, defenderId);
+                        session = await _engine.DeclareBlockersAIAsync(session, currentDefenderId);
+                        await _engine.SaveSessionAsync(session);
+
                         session = await _engine.ResolveCombatDamageAsync(session, aiId);
                         _logger.LogInformation("[AIPlayTurn] Combat resolved automatically for AI vs AI.");
                     }
                     else
                     {
-                        // ✅ IA vs Humain → attendre les bloqueurs
                         session.CurrentPhase = Phase.Combat;
                         await _engine.SaveSessionAsync(session);
                         _logger.LogInformation("[AIPlayTurn] Waiting for human to declare blockers.");
                         return _mapper.Map<GameSessionDto>(session);
                     }
                 }
-
 
                 if (_engine.IsPreEndPhase(session, aiId))
                     session = _engine.PreEndCheck(session, aiId);
@@ -278,9 +251,19 @@ namespace GameMicroservice.Application.UseCases
                     session.CurrentPhase = Phase.End;
 
                 session = _engine.EndTurn(session, aiId);
-                await _engine.SaveSessionAsync(session);
 
-                _logger.LogInformation("[AIPlayTurn] Ended turn for AI ({AIId}).", aiId);
+                var otherPlayer = session.Players.FirstOrDefault(p => p.PlayerId != aiId);
+                if (otherPlayer != null)
+                {
+                    session.ActivePlayerId = otherPlayer.PlayerId;
+                }
+                else
+                {
+                    _logger.LogWarning("[AIPlayTurn] No other player found to pass turn to.");
+                }
+
+                await _engine.SaveSessionAsync(session);
+                _logger.LogInformation("[AIPlayTurn] Ended turn for AI ({AIId}). ActivePlayer now: {ActivePlayer}", aiId, session.ActivePlayerId);
             }
             catch (Exception ex)
             {
@@ -288,7 +271,6 @@ namespace GameMicroservice.Application.UseCases
                 throw;
             }
 
-            // 🧩 Dump final state snapshot
             var battlefieldCount = session.Zones.ContainsKey($"{aiId}_battlefield") ? session.Zones[$"{aiId}_battlefield"].Count : 0;
             var handCount = session.Zones.ContainsKey($"{aiId}_hand") ? session.Zones[$"{aiId}_hand"].Count : 0;
             var mana = session.Players.First(p => p.PlayerId == aiId)?.ManaPool?.ToString() ?? "N/A";
