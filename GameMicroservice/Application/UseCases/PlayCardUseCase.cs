@@ -78,8 +78,6 @@ namespace GameMicroservice.Application.UseCases
                             return new ActionResultDto { Success = false, Message = "Pas la phase de combat" };
                         if (action.Attackers == null || !action.Attackers.Any())
                             return new ActionResultDto { Success = false, Message = "Liste des attaquants manquante" };
-                        if (action.Blockers == null)
-                            return new ActionResultDto { Success = false, Message = "Dictionnaire des bloqueurs manquant" };
 
                         await _engine.ValidateAttackAsync(sessionEntity, playerId, action.Attackers);
                         sessionEntity = await _engine.DeclareAttackersAsync(sessionEntity, playerId, action.Attackers);
