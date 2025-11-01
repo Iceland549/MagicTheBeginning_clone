@@ -1,45 +1,56 @@
+
+/* ======= Hand Layout global ======= */
 .hand-zone {
   display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  background: rgba(22, 22, 22, 0.9);
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  background: rgba(22, 22, 22, 0.85);
   border-radius: 10px;
   padding: 10px;
+  overflow: hidden;
 }
 
-.hand-zone img {
-  transform: scale(1);
-  transition: transform 0.2s ease;
-}
-
-.hand-zone img:hover {
-  transform: scale(1.3);
-}
-
-.center-zone {
+/* ======= Header (bibliothèques / VS) ======= */
+.hand-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
   gap: 40px;
-  width: 100%;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
+.vs-label {
+  font-weight: bold;
+  color: #cbb26a;
+  font-size: 1.1rem;
+}
 
-.card-list {
+/* ======= Grille de cartes ======= */
+.hand-cards {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* ✅ deux colonnes */
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* ✅ Responsive 3-4 cartes/ligne */
+  gap: 14px;
   justify-items: center;
   width: 100%;
-  margin: 0 auto;
-  overflow: visible;
   padding-bottom: 12px;
 }
 
-.card-list img {
-  width: 100px; /* Ajuste selon ta taille de carte */
+/* ======= Cartes ======= */
+.hand-cards img,
+.hand-cards .card-view {
+  width: 100%;
+  max-width: 160px;
   height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  cursor: pointer;
+}
+
+.hand-cards img:hover,
+.hand-cards .card-view:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.5);
 }
 

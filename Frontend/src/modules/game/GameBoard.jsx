@@ -548,11 +548,12 @@ export default function GameBoard(showControls, ...props) {
     console.log("🖐 Main joueur :", enrichedZones[`${playerId}_hand`]);
   }
 
-  return (
+    return (
     <div
       className="game-table-bg"
-        style={{
-          backgroundImage: "url('/blood-artist.jpg'), linear-gradient(135deg,#222 0%,#444 100%)"
+      style={{
+        backgroundImage:
+          "url('/blood-artist.jpg'), linear-gradient(135deg,#222 0%,#444 100%)",
       }}
     >
       <div className="game-table-container">
@@ -561,162 +562,214 @@ export default function GameBoard(showControls, ...props) {
         </button>
         <h2>Plateau de jeu</h2>
 
+        {/* ----------- Sélection des decks ----------- */}
         {!state && (
           <>
             <div className="available-decks-zone">
               <h3>Decks disponibles</h3>
               <ul className="deck-list">
-                {availableDecks.map(deck => (
+                {availableDecks.map((deck) => (
                   <li key={deck.id} className="deck-item">
                     <span>
-                      {deck.name} <span className="deck-count">{deck.cards.reduce((sum, c) => sum + c.quantity, 0)} cartes</span>
+                      {deck.name}{' '}
+                      <span className="deck-count">
+                        {deck.cards.reduce((sum, c) => sum + c.quantity, 0)} cartes
+                      </span>
                     </span>
                     <span>
-                      <button className="btn-assign" onClick={() => setDeckP1(deck)}>+ Joueur 1</button>
-                      <button className="btn-assign" onClick={() => setDeckP2(deck)}>+ IA</button>
+                      <button className="btn-assign" onClick={() => setDeckP1(deck)}>
+                        + Joueur 1
+                      </button>
+                      <button className="btn-assign" onClick={() => setDeckP2(deck)}>
+                        + IA
+                      </button>
                     </span>
                   </li>
                 ))}
               </ul>
             </div>
+
             <div className="deck-selection-area">
               <div className="deck-selector">
                 <h3>Deck Joueur 1 (toi)</h3>
                 {deckP1 ? (
                   <div className="deck-item selected">
-                    {deckP1.name} <span className="deck-count">{deckP1.cards.reduce((sum, c) => sum + c.quantity, 0)} cartes</span>
-                    <button className="btn-remove" onClick={() => setDeckP1(null)}>-</button>
+                    {deckP1.name}{' '}
+                    <span className="deck-count">
+                      {deckP1.cards.reduce((sum, c) => sum + c.quantity, 0)} cartes
+                    </span>
+                    <button className="btn-remove" onClick={() => setDeckP1(null)}>
+                      -
+                    </button>
                   </div>
                 ) : (
                   <div className="deck-item empty">Aucun deck sélectionné</div>
                 )}
               </div>
+
               <div className="deck-selector">
                 <h3>Deck Joueur 2 (IA)</h3>
                 {deckP2 ? (
                   <div className="deck-item selected">
-                    {deckP2.name} <span className="deck-count">{deckP2.cards.reduce((sum, c) => sum + c.quantity, 0)} cartes</span>
-                    <button className="btn-remove" onClick={() => setDeckP2(null)}>-</button>
+                    {deckP2.name}{' '}
+                    <span className="deck-count">
+                      {deckP2.cards.reduce((sum, c) => sum + c.quantity, 0)} cartes
+                    </span>
+                    <button className="btn-remove" onClick={() => setDeckP2(null)}>
+                      -
+                    </button>
                   </div>
                 ) : (
                   <div className="deck-item empty">Aucun deck sélectionné</div>
                 )}
               </div>
             </div>
-            <button className="btn" onClick={init} disabled={!deckP1 || !deckP2 || loading}>
+
+            <button
+              className="btn"
+              onClick={init}
+              disabled={!deckP1 || !deckP2 || loading}
+            >
               Démarrer la partie
             </button>
           </>
         )}
+
+        {/* ----------- Plateau de jeu ----------- */}
         {state && (
           <div className="magic-board">
-            <div className="actions-zone-wrapper">
-              {showControls && <div className="actions-zone"><GameActions {...props.actionsProps} /></div>}
+            {/* ---------- TOP BAR : actions + statut ---------- */}
+            <div className="top-bar">
+              <GameActions actions={buildActions()} onAction={handleAction} />
+              {showControls && (
+                <div className="actions-zone">
+                  <GameActions {...props.actionsProps} />
+                </div>
+              )}
               <div className="game-status">
-                <p>Joueur actif : {state.activePlayerId === playerId ? "Toi" : "IA"}</p>
+                <p>
+                  Joueur actif :{' '}
+                  {state.activePlayerId === playerId ? 'Toi' : 'IA'}
+                </p>
                 <p>Phase : {state.currentPhase}</p>
-                <p>PV Toi : {state.players?.find(p => p.playerId === playerId)?.lifeTotal ?? 20}</p>
-                <p>PV IA : {state.players?.find(p => p.playerId === state.playerTwoId)?.lifeTotal ?? 20}</p>
+                <p>
+                  PV Toi :{' '}
+                  {state.players?.find((p) => p.playerId === playerId)?.lifeTotal ??
+                    20}
+                </p>
+                <p>
+                  PV IA :{' '}
+                  {state.players?.find((p) => p.playerId === state.playerTwoId)
+                    ?.lifeTotal ?? 20}
+                </p>
               </div>
             </div>
-            <PlayerZone
-              playerId={state.playerTwoId}
-              zones={enrichedZones} 
-              isPlayable={false}
-            />
-            <div className="battlefield-areas">
-              <Battlefield
-                cards={enrichedZones[`${state.playerTwoId}_battlefield`] || []}
-                label={`Champ de bataille : ${state.playerTwoId}`}
-                playerId={state.playerTwoId}
-                currentPlayerId={playerId} 
-                currentPhase={state?.currentPhase}
-                combatMode={combatMode}
-                selectedAttackers={localTappedAttackers}
-                selectedBlockers={localSelectedBlockers}
-                onSelectAttacker={handleTapCreature}
-                onSelectBlocker={handleSelectBlocker}
 
-              />
-              <Battlefield
-                cards={enrichedZones[`${playerId}_battlefield`] || []}
-                label={`Champ de bataille : Toi`}
-                  onTap={handleTapLand}
-                  onTapCreature={handleTapCreature}
-                  playerId={playerId}
+            {/* ---------- MAIN AREA ---------- */}
+            <div className="main-area">
+              <div className="player-zone-col left">
+                <PlayerZone
+                  playerId={state.playerTwoId}
+                  zones={enrichedZones}
+                  onPlayCard={onPlay}
+                  isPlayable={false}
+                  isHuman={false}
+                />
+              </div>
+
+              <div className="battlefield-areas">
+                <Battlefield
+                  cards={enrichedZones[`${state.playerTwoId}_battlefield`] || []}
+                  label={`Champ de bataille : ${state.playerTwoId}`}
+                  playerId={state.playerTwoId}
                   currentPlayerId={playerId}
-                  currentPhase={state?.currentPhase} 
+                  currentPhase={state?.currentPhase}
                   combatMode={combatMode}
                   selectedAttackers={localTappedAttackers}
                   selectedBlockers={localSelectedBlockers}
                   onSelectAttacker={handleTapCreature}
                   onSelectBlocker={handleSelectBlocker}
+                />
 
-              />
-            </div>
+                <Battlefield
+                  cards={enrichedZones[`${playerId}_battlefield`] || []}
+                  label={`Champ de bataille : Toi`}
+                  playerId={playerId}
+                  currentPlayerId={playerId}
+                  currentPhase={state?.currentPhase}
+                  combatMode={combatMode}
+                  onTap={handleTapLand}
+                  onTapCreature={handleTapCreature}
+                  selectedAttackers={localTappedAttackers}
+                  selectedBlockers={localSelectedBlockers}
+                  onSelectAttacker={handleTapCreature}
+                  onSelectBlocker={handleSelectBlocker}
+                />
+              </div>
 
-            <PlayerZone
-              playerId={playerId}
-              zones={enrichedZones}
-              onPlayCard={onPlay}
-              isPlayable={state.activePlayerId === playerId && state.currentPhase === 'Main'}
-              currentPhase={state.currentPhase}
+              <div className="player-zone-col right">
+                <PlayerZone
+                  playerId={playerId}
+                  zones={enrichedZones}
+                  onPlayCard={onPlay}
+                  isPlayable={
+                    state.activePlayerId === playerId &&
+                    state.currentPhase === 'Main'
+                  }
+                  isHuman={true}
+                />
+              </div>
+            </div> {/* end main-area */}
+          </div>
+        )}
+        {/* ----------- Bannières / Phases ----------- */}
+        {isAITurn && (
+          <div className="ai-thinking-overlay">
+            <img
+              src="/assets/saruman-2.jpeg"
+              alt="AI Thinking"
+              className="ai-thinking-image"
             />
+          </div>
+        )}
+        {showWizard && (
+          <div className="player-turn-banner">
+            <img
+              src="/assets/gandalf.jpeg"
+              alt="À toi de jouer !"
+              className="player-turn-image"
+            />
+            <div className="player-turn-text">À toi de jouer !...</div>
+          </div>
+        )}
 
-            {/* <div className="center-zone">
-              <Library count={enrichedZones[`${state.playerTwoId}_library`]?.length || 0} />
-              <div className="vs-label">VS</div>
-              <Library count={enrichedZones[`${playerId}_library`]?.length || 0} />
-            </div> */}
+        {showCombatBanner && (
+          <div className="combat-phase-banner">
+            <img
+              src="/assets/arena-magic.jpg"
+              alt="Phase de combat"
+              className="combat-phase-image"
+            />
+            <div className="combat-phase-text">{combatPhaseMessage}</div>
+          </div>
+        )}
 
-            <GameActions actions={buildActions()} onAction={handleAction} />
-            {isAITurn && (
-              <div className="ai-thinking-overlay">
-                <img
-                  src="/assets/saruman-2.jpeg"
-                  alt="AI Thinking"
-                  className="ai-thinking-image"
-                />
-                <div className="ai-thinking-text">L'adversaire joue...</div>
-            </div>
-            )}
-            {showWizard && ( 
-              <div className="player-turn-banner"> 
-                <img 
-                  src="/assets/gandalf.jpeg" 
-                  alt="À toi de jouer !" 
-                  className="player-turn-image"
-                /> 
-                <div className="player-turn-text">À toi de jouer !...</div>
-            </div> )}
-            {showCombatBanner && (
-              <div className="combat-phase-banner">
-                <img
-                  src="/assets/arena-magic.jpg"
-                  alt="Phase de combat"
-                  className="combat-phase-image"
-                />
-                <div className="combat-phase-text">{combatPhaseMessage}</div>
-              </div>
-            )}
-            {showDamageBanner && (
-              <div className="damage-phase-banner">
-                <img
-                  src="/assets/damage.jpeg"
-                  alt="Résolution des dégâts"
-                  className="damage-phase-image"
-                />
-                <div className="damage-phase-text">{damagePhaseMessage}</div>
-              </div>
-            )}
+        {showDamageBanner && (
+          <div className="damage-phase-banner">
+            <img
+              src="/assets/damage.jpeg"
+              alt="Résolution des dégâts"
+              className="damage-phase-image"
+            />
+            <div className="damage-phase-text">{damagePhaseMessage}</div>
+          </div>
+        )}
 
-            {state?.currentPhase === 'Combat' && state.activePlayerId === playerId && (
-              <div className="combat-actions">
-              {combatError && (
-                <div className="combat-error">
-                  ⚠️ {combatError}
-                </div>
-              )}
+        {state?.currentPhase === 'Combat' &&
+          state.activePlayerId === playerId && (
+            <div className="combat-actions">
+              {combatError && <div className="combat-error">⚠️ {combatError}</div>}
+
               {!combatMode && (
                 <button
                   className="btn btn-combat"
@@ -725,7 +778,8 @@ export default function GameBoard(showControls, ...props) {
                   Déclarer les attaquants
                 </button>
               )}
-              {combatMode === "attack" && (
+
+              {combatMode === 'attack' && (
                 <div className="combat-attack-buttons">
                   <button
                     className="btn btn-confirm"
@@ -739,13 +793,18 @@ export default function GameBoard(showControls, ...props) {
                   </button>
                 </div>
               )}
-              {combatMode === "block" && (
+
+              {combatMode === 'block' && (
                 <div className="combat-block-buttons">
                   <p className="combat-info">
                     Phase de blocage – Sélectionne tes bloqueurs ou passe
                   </p>
-                  <button className="btn btn-block" onClick={handleDeclareBlockers}>
-                    Déclarer les bloqueurs {Object.keys(localSelectedBlockers).length}
+                  <button
+                    className="btn btn-block"
+                    onClick={handleDeclareBlockers}
+                  >
+                    Déclarer les bloqueurs{' '}
+                    {Object.keys(localSelectedBlockers).length}
                   </button>
                   <button className="btn btn-skip" onClick={handleDeclareBlockers}>
                     Passer (pas de blocage)
@@ -754,8 +813,6 @@ export default function GameBoard(showControls, ...props) {
               )}
             </div>
           )}
-          </div>
-        )}
       </div>
     </div>
   );

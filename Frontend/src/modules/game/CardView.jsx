@@ -69,10 +69,6 @@ export default function CardView({
       className={`card-view ${card.isTapped ? 'card-tapped' : ''}`}
       onClick={() => setSelectedCard(card)}
     >
-      <h4>{card.name || card.cardId || 'Carte sans ID'}</h4>
-      <p>{card.typeLine}</p>
-      {card.manaCost && <p>Coût : {card.manaCost}</p>}
-
       {card.imageUrl && (
         <img
           src={card.imageUrl || 'https://via.placeholder.com/100'}
@@ -126,10 +122,10 @@ export default function CardView({
         </button>
       )}
 
-      {/* Infos supplémentaires */}
+      {/* Infos supplémentaires
       {typeof card.power === 'number' && typeof card.toughness === 'number' && (
-        <p>{card.power} / {card.toughness}</p>
-      )}
+        // <p>{card.power} / {card.toughness}</p>
+      )} */}
       {localTapped}
       {card.hasSummoningSickness && <p style={{ color: 'orange' }}>Mal d’invocation</p>}
 
