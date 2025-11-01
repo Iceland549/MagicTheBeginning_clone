@@ -11,7 +11,8 @@ export default function CardView({
   disabled,
   playerId,
   currentPlayerId,
-  currentPhase
+  currentPhase,
+  onCardClick
 }) {
   const [selectedCard, setSelectedCard] = useState(null);
   const [localTapped, setLocalTapped] = useState(Boolean(card?.isTapped));
@@ -67,13 +68,13 @@ export default function CardView({
   return (
     <div
       className={`card-view ${card.isTapped ? 'card-tapped' : ''}`}
-      onClick={() => setSelectedCard(card)}
+      // onClick={() => setSelectedCard(card)}
+      onClick={() => onCardClick && onCardClick(card)} // délégation ouverture modale au parent
     >
       {card.imageUrl && (
         <img
           src={card.imageUrl || 'https://via.placeholder.com/100'}
           alt={card.name || 'Carte'}
-          style={{ maxWidth: '100px', cursor: 'pointer' }}
           className={`battle-card-img${card.isTapped ? ' tapped' : ''}${card.isAttacking ? ' creature-attacking' : ''}`}
         />
       )}
@@ -82,7 +83,7 @@ export default function CardView({
       {isLand && onTap && playerId === currentPlayerId && (
         <>
           {!localTapped ? (
-            <button className="btn" onClick={handleTapClick}>Tap</button>
+            <button className="btn" onClick={(e) => { e.stopPropagation(); handleTapClick(); }}>Tap</button>
           ) : (
             <span></span>
           )}
@@ -90,7 +91,7 @@ export default function CardView({
       )}
 
       {isCreature && playerId === currentPlayerId && currentPhase === 'Combat' && !card.hasSummoningSickness && (
-        <button className="btn-tap" onClick={handleTapCreatureClick}>
+        <button className="btn-tap" onClick={(e) => { e.stopPropagation(); handleTapCreatureClick(); }}>
           {localTapped ? 'Untap' : 'Tap '}
         </button>
       )}
@@ -99,7 +100,7 @@ export default function CardView({
       {isCreature && currentPhase === 'Combat' && card.canBlock && (
         <button
           className="btn-block"
-          onClick={() => handleBlockCreatureClick(card.attackerTargetId)}
+          onClick={(e) => { e.stopPropagation(); handleBlockCreatureClick(card.attackerTargetId); }}
         >
       {isBlocking ? 'Unblock' : 'Block'}
         </button>
@@ -109,7 +110,8 @@ export default function CardView({
       {/* Bouton "Jouer" si applicable */}
       {typeof onPlay === 'function' && (
         <button
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             if (!card.cardId) {
               alert('Erreur : Carte sans ID');
               return;
@@ -122,10 +124,6 @@ export default function CardView({
         </button>
       )}
 
-      {/* Infos supplémentaires
-      {typeof card.power === 'number' && typeof card.toughness === 'number' && (
-        // <p>{card.power} / {card.toughness}</p>
-      )} */}
       {localTapped}
       {card.hasSummoningSickness && <p style={{ color: 'orange' }}>Mal d’invocation</p>}
 

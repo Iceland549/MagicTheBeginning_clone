@@ -9,19 +9,6 @@
   transform: scale(1.05);
 }
 
-.card-mini {
-  display: inline-block;
-  background: #222;
-  color: #d8b86a;
-  border-radius: 6px;
-  padding: 6px 11px;
-  margin: 0 7px 7px 0;
-  font-family: monospace;
-  font-size: 0.98em;
-  min-width: 60px;
-  text-align: center;
-}
-
 /* --- TAP LOGIC --- */
 .card-view.tap-container {
   position: relative;

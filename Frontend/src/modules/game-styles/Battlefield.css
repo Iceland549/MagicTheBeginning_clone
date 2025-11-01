@@ -23,25 +23,22 @@
   flex-wrap: wrap;
   gap: 12px;
   justify-content: center;
+}
+
+.battle-card-img{
   width: 100%;
-}
+  max-width: 160px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  cursor: pointer;
+} 
 
-.battlefield-card img {
-  transform: scale(1.8);
-  transition: transform 0.2s ease;
-}
-
-.battlefield-card img:hover {
+.battle-card img:hover {
   transform: scale(2.1);
   z-index: 10;
   position: relative;
-}
-
-.card-tapped img,
-.battle-card-img.tapped {
-  transform: rotate(90deg);
-  opacity: 0.8;
-  transition: transform 0.4s ease, opacity 0.3s ease;
 }
 
 .battle-card-img.tapped {

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, {useState} from 'react';
 import CardView from './CardView';
+import CardModal from '../../components/CardModal';
 import '../game-styles/Battlefield.css';
 
 export default function Battlefield({
@@ -15,6 +16,7 @@ export default function Battlefield({
   const spellCards = (cards || []).filter(card => !card.typeLine?.includes('Land') && !card.typeLine?.includes('Creature'));
   const creatureCards = (cards || []).filter(card => card.typeLine?.includes('Creature'));
   const landCards = (cards || []).filter(card => card.typeLine?.includes('Land'));
+  const [selectedCard, setSelectedCard] = useState(null);
 
   return (
     <div className="battlefield-zone">
@@ -26,6 +28,7 @@ export default function Battlefield({
           <CardView
             key={card.cardId || card.id || `${card.cardName}_${i}`}
             card={card}
+            onCardClick={setSelectedCard}
           />
         ))}
       </div>
@@ -41,6 +44,7 @@ export default function Battlefield({
             playerId={playerId}
             currentPlayerId={currentPlayerId}
             currentPhase={currentPhase}
+            onCardClick={setSelectedCard}
           />
         ))}
       </div>
@@ -55,9 +59,11 @@ export default function Battlefield({
             playerId={playerId}
             currentPlayerId={currentPlayerId}
             currentPhase={currentPhase}
+            onCardClick={setSelectedCard}
           />
         ))}
       </div>
+      <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
     </div>
   );
 }
