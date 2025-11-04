@@ -302,7 +302,7 @@
 
 /* IA (PlayerTwoId) → GAUCHE */
 .ai-thinking-overlay {
-  left: 40%;
+  left: 15%;
   transform: translate(-50%, -50%);
   box-shadow: 0 0 30px rgba(100, 149, 237, 0.8);
 }
@@ -317,7 +317,7 @@
 /* Combat & Damage → CENTRE (comme avant) */
 .combat-phase-banner,
 .damage-phase-banner {
-  left: 60%;
+  left: 50%;
   transform: translate(-50%, -50%);
 }
 

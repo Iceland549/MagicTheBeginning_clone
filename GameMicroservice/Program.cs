@@ -14,6 +14,7 @@ using Ocelot.Middleware;
 using System.Text;
 using System.Text.Json.Serialization;
 using Serilog;
+using GameMicroservice.Presentation.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,13 +25,19 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 builder.Host.UseSerilog();
 
+builder.Services.AddSignalR();
+
 // CORS
-builder.Services.AddCors(p =>
-  p.AddPolicy("AllowReactApp", b =>
-    b.WithOrigins("http://localhost:3000")
-     .AllowAnyHeader()
-     .AllowAnyMethod()
-     .AllowCredentials()));
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 
 // JWT Authentication
@@ -52,14 +59,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Cross origins (frontend React)
-builder.Services.AddCors(opts =>
-    opts.AddPolicy("AllowAll", p =>
-        p.AllowAnyHeader()
-         .AllowAnyMethod()
-         .AllowAnyOrigin()
-    )
-);
+//// Cross origins (frontend React)
+//builder.Services.AddCors(opts =>
+//    opts.AddPolicy("AllowAll", p =>
+//        p.AllowAnyHeader()
+//         .AllowAnyMethod()
+//         .AllowAnyOrigin()
+//    )
+//);
 
 // HealthCheck
 builder.Services.AddHealthChecks();
@@ -109,12 +116,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowReactApp");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();  // Show detailed errors in development
+    app.UseDeveloperExceptionPage(); 
     app.UseSwagger();
     app.UseSwaggerUI();
 }
@@ -130,6 +137,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<GameHub>("/gamehub");
 app.MapHealthChecks("/health");
 
 app.Run();

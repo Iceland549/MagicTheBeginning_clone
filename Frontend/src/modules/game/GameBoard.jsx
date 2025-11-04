@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import { startGame, getGameState, playCard, declareAttackers, declareBlockers, resolveCombat } from './gameService';
 import { getAllDecks } from '../decks/deckService';
 import { getAllCards } from '../cards/cardService'; 
@@ -8,6 +8,7 @@ import '../game-styles/GameBoard.css';
 import Battlefield from './Battlefield';
 import PlayerZone from './PlayerZone';
 import GameActions from './GameActions';
+import * as signalR from '@microsoft/signalr';
 
 export default function GameBoard(showControls, ...props) {
   const [gameId, setGameId] = useState('');
@@ -19,8 +20,6 @@ export default function GameBoard(showControls, ...props) {
   const [cardDetails, setCardDetails] = useState({}); 
   const [showWizard, setShowWizard] = useState(false);
   const [combatMode, setCombatMode] = useState(null);
-  // const [localTappedAttackers, setlocalTappedAttackers] = useState([]);
-  // const [localSelectedBlockers, setlocalSelectedBlockers] = useState({});
   const [combatError, setCombatError] = useState(null);
   const navigate = useNavigate();
   const playerId = localStorage.getItem('userId'); 
@@ -38,8 +37,66 @@ export default function GameBoard(showControls, ...props) {
   const [localTappedAttackers, setLocalTappedAttackers] = useState([]); 
   const [localSelectedBlockers, setLocalSelectedBlockers] = useState({});
 
-  
+  const isAITurn = state && state.activePlayerId === state.playerTwoId;
 
+  // ============================================
+  // SIGNALR SETUP + GAMESTATE SYNC
+  // ============================================
+  useEffect(() => {
+    if (!gameId) return;
+
+    const baseHubUrl =
+      process.env.NODE_ENV === 'development'
+        ? 'http://localhost:5004/gamehub'
+        : 'http://localhost:5004/gamehub';
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(baseHubUrl, {})
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Information)
+      .build();
+
+    // ✅ Connexion ouverte
+    connection
+      .start()
+      .then(() => {
+        console.log('✅ SignalR connected to GameHub');
+        connection.invoke('JoinGame', gameId);
+      })
+      .catch(err => console.error('❌ SignalR Connection Error:', err));
+
+    // 🎧 Ecoute des mises à jour de partie envoyées par le backend
+    connection.on('GameSessionUpdated', (updatedSession) => {
+      console.log('📨 [SignalR] Message reçu:', {
+        phase: updatedSession.currentPhase,
+        aiAction: updatedSession.aiCurrentAction, 
+        timestamp: new Date().toISOString()
+      });
+      setState(updatedSession);
+
+      // 🧠 Si le backend envoie une indication d’action IA en cours
+      if (updatedSession.aiCurrentAction) {
+        console.log('🤖 AI action detected:', updatedSession.aiCurrentAction);
+      }
+    });
+
+    // 🔁 Nettoyage à la fermeture du composant
+    return () => {
+      connection.invoke('LeaveGame', gameId)
+        .then(() => connection.stop())
+        .catch(err => console.error('⚠️ SignalR disconnect error:', err));
+    };
+  }, [gameId]);
+  // ============================================ 
+
+  useEffect(() => {
+    if (state?.aiCurrentAction) {
+      console.log('🤖 Action IA détectée:', state.aiCurrentAction);
+    }
+  }, [state?.aiCurrentAction]);
+
+  
+  
   useEffect(() => {
     if (!playerId) {
       console.error('No playerId found in localStorage');
@@ -67,8 +124,6 @@ export default function GameBoard(showControls, ...props) {
         setCardDetails({});
       });
   }, [playerId, navigate]);
-
-  const isAITurn = state && state.activePlayerId === state.playerTwoId;
 
   const refresh = useCallback(async () => {
     if (!gameId) return;
@@ -154,9 +209,9 @@ export default function GameBoard(showControls, ...props) {
     if (state && state.activePlayerId === playerId && state.currentPhase === "Draw")  
       {
         setShowWizard(true); 
-        setTimeout(() => setShowWizard(false), 4000);  
-      }  
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+        setTimeout(() => setShowWizard(false), 4000);
+      }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.activePlayerId, state?.currentPhase]);
 
   useEffect(() => {
@@ -216,7 +271,7 @@ export default function GameBoard(showControls, ...props) {
     switch (state.currentPhase) {
       case 'Draw':
         console.log('-> Adding Draw phase actions');
-          actions.push({ label: 'Continuer', type: 'Draw' });
+          actions.push({ label: 'Piocher', type: 'Draw' });
 
         break; 
 
@@ -730,6 +785,9 @@ export default function GameBoard(showControls, ...props) {
               alt="AI Thinking"
               className="ai-thinking-image"
             />
+            <div className="ai-thinking-text">
+              {state?.aiCurrentAction || "L'adversaire joue..."}
+            </div>
           </div>
         )}
         {showWizard && (

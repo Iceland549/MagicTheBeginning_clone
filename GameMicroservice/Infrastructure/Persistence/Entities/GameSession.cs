@@ -46,6 +46,9 @@ namespace GameMicroservice.Infrastructure.Persistence.Entities
         [BsonElement("turnNumber")]
         public int TurnNumber { get; set; } = 1;
 
+        [BsonElement("aiCurrentAction")]
+        public string? AiCurrentAction { get; set; }               // Current action being processed by AI
+
 
     }
 }

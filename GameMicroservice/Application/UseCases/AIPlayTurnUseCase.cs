@@ -10,6 +10,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
+using GameMicroservice.Presentation.Hubs;
 
 namespace GameMicroservice.Application.UseCases
 {
@@ -19,17 +21,20 @@ namespace GameMicroservice.Application.UseCases
     public class AIPlayTurnUseCase
     {
         private readonly ILogger<AIPlayTurnUseCase> _logger;
+        private readonly IHubContext<GameHub> _hubContext;
         private readonly IGameRulesEngine _engine;
         private readonly IAIEngine _ai;
         private readonly IMapper _mapper;
 
         public AIPlayTurnUseCase(
             ILogger<AIPlayTurnUseCase> logger,
+            IHubContext<GameHub> hubContext,
             IGameRulesEngine engine,
             IAIEngine ai,
             IMapper mapper)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
             _engine = engine ?? throw new ArgumentNullException(nameof(engine));
             _ai = ai ?? throw new ArgumentNullException(nameof(ai));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
@@ -60,7 +65,11 @@ namespace GameMicroservice.Application.UseCases
             }
 
             session = await _engine.DrawStepAsync(session, aiId);
+            session.AiCurrentAction = "Pioche une carte";
             await _engine.SaveSessionAsync(session);
+            await _hubContext.Clients.Group(sessionId).SendAsync("GameSessionUpdated", _mapper.Map<GameSessionDto>(session));
+            await Task.Delay(1500);
+            _logger.LogInformation("[AIPlayTurn] ⏳ Pause après pioche");
             _logger.LogInformation("[AIPlayTurn] DrawStep done. HasDrawnThisTurn={HasDrawn}", _engine.HasDrawnThisTurn(session, aiId));
 
             var sem = new SemaphoreSlim(1, 1);
@@ -98,6 +107,7 @@ namespace GameMicroservice.Application.UseCases
                     switch (action.Type)
                     {
                         case ActionType.PlayLand:
+                            session.AiCurrentAction = $"🌳 Pose un terrain ";
                             if (string.IsNullOrEmpty(action.CardId))
                             {
                                 _logger.LogWarning("[AIPlayTurn] Skipping PlayLand — CardId is null.");
@@ -107,10 +117,13 @@ namespace GameMicroservice.Application.UseCases
                             await _engine.ValidatePlayLandAsync(session, aiId, action.CardId);
                             session = _engine.PlayLand(session, aiId, action.CardId);
                             await _engine.SaveSessionAsync(session);
-                            _logger.LogInformation("[AIPlayTurn] Played land {CardId}.", action.CardId);
+                            await _hubContext.Clients.Group(sessionId).SendAsync("GameSessionUpdated", _mapper.Map<GameSessionDto>(session));
+                            await Task.Delay(1200);
+                            _logger.LogInformation("[AIPlayTurn] Played land {CardId}. ⏳ Pause...", action.CardId);
                             break;
 
                         case ActionType.PlayCard:
+                            session.AiCurrentAction = $"✨ Joue un sort ";
                             if (string.IsNullOrEmpty(action.CardId))
                             {
                                 _logger.LogWarning("[AIPlayTurn] Skipping PlayCard — CardId is null.");
@@ -169,9 +182,13 @@ namespace GameMicroservice.Application.UseCases
 
                             try
                             {
+                                session.AiCurrentAction = $"✨ Joue un sort : {cardInHand?.Name}";
                                 await _engine.ValidatePlayAsync(session, aiId, action.CardId);
                                 session = await _engine.PlayCardAsync(session, aiId, action.CardId);
                                 await _engine.SaveSessionAsync(session);
+                                await _hubContext.Clients.Group(sessionId).SendAsync("GameSessionUpdated", _mapper.Map<GameSessionDto>(session));
+                                await Task.Delay(1200);
+                                _logger.LogInformation("[AIPlayTurn] Delay after Play Card... ⏳");
                                 _logger.LogInformation("[AIPlayTurn] Played spell {CardId}.", action.CardId);
                             }
                             catch (Exception ex)
@@ -202,6 +219,7 @@ namespace GameMicroservice.Application.UseCases
             // 🟥 END OF TURN PHASES
             try
             {
+                session.AiCurrentAction = $"✨ Joue un sort ";
                 // --- 🟩 COMBAT PHASE ---
                 var battlefieldKey = $"{aiId}_battlefield";
                 var availableAttackers = session.Zones.ContainsKey(battlefieldKey)
@@ -251,6 +269,10 @@ namespace GameMicroservice.Application.UseCases
                     session.CurrentPhase = Phase.End;
 
                 session = _engine.EndTurn(session, aiId);
+                await _engine.SaveSessionAsync(session);
+                await _hubContext.Clients.Group(sessionId).SendAsync("GameSessionUpdated", _mapper.Map<GameSessionDto>(session));
+                await Task.Delay(1800);
+                _logger.LogInformation("[AIPlayTurn] Delay after EndTurn... ⏳");
 
                 var otherPlayer = session.Players.FirstOrDefault(p => p.PlayerId != aiId);
                 if (otherPlayer != null)
