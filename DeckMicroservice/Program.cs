@@ -45,13 +45,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // Cross origins (frontend React)
-builder.Services.AddCors(opts =>
-    opts.AddPolicy("AllowAll", p =>
-        p.AllowAnyHeader()
-         .AllowAnyMethod()
-         .AllowAnyOrigin()
-    )
-);
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 
 // HealthCheck
 builder.Services.AddHealthChecks();
@@ -97,7 +101,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowReactApp");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

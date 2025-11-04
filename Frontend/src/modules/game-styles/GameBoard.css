@@ -314,7 +314,7 @@
   box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
 }
 
-/* Combat & Damage → CENTRE (comme avant) */
+/* Combat & Damage → CENTRE  */
 .combat-phase-banner,
 .damage-phase-banner {
   left: 50%;

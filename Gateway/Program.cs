@@ -50,13 +50,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // Cross origins (frontend React)
-builder.Services.AddCors(opts =>
-    opts.AddPolicy("AllowAll", p =>
-        p.AllowAnyHeader()
-         .AllowAnyMethod()
-         .AllowAnyOrigin()
-    )
-);
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 
 builder.Services.AddOcelot(builder.Configuration);
 
@@ -99,7 +103,7 @@ else
     app.UseExceptionHandler("/error"); // Route for global error handling
 }
 
-app.UseCors("AllowAll");
+app.UseCors("AllowReactApp");
 
 app.UseHttpsRedirection();
 
